@@ -119,6 +119,57 @@ export const TRAINING_CASES: TrainingCase[] = [
     source: 'Discrete Random Variables - Practice Problems',
   },
   {
+    id: 'ontario-blackout',
+    title: 'Ontario peak demand · blackout a–d',
+    fingerprints: [
+      'peak demand',
+      'blackout',
+      'standard deviation',
+      'falls to 50',
+      '1,200',
+      '1200',
+      '20',
+      'at least one',
+    ],
+    prompt:
+      'Peak demand ~ N(1000, 60). Capacity 1,100. (a) P(blackout)? (b) σ→50? (c) capacity→1,200? (d) P(at least one blackout in 20 days)?',
+    solverId: 'normal',
+    values: { mean: 1000, sd: 60, query: 'greater', x: 1100 },
+    rationale:
+      'Single-day blackout is Normal right-tail; multi-day “at least one” is Binomial with p from (a).',
+    parts: [
+      {
+        label: 'Part A',
+        solverId: 'normal',
+        values: { mean: 1000, sd: 60, query: 'greater', x: 1100 },
+        rationale: 'P(X>1100) with N(1000,60).',
+        fingerprints: ['blackout on one day', 'p(blackout)'],
+      },
+      {
+        label: 'Part B',
+        solverId: 'normal',
+        values: { mean: 1000, sd: 50, query: 'greater', x: 1100 },
+        rationale: 'Same capacity, σ falls to 50.',
+        fingerprints: ['falls to 50', 'σ falls'],
+      },
+      {
+        label: 'Part C',
+        solverId: 'normal',
+        values: { mean: 1000, sd: 60, query: 'greater', x: 1200 },
+        rationale: 'Capacity rises to 1,200; σ stays 60.',
+        fingerprints: ['1,200', '1200', 'rises by 100'],
+      },
+      {
+        label: 'Part D',
+        solverId: 'binomial',
+        values: { n: 20, p: 0.047790352, query: 'atLeast', x: 1 },
+        rationale: '20 independent days; P(at least one) with p from part A.',
+        fingerprints: ['20 days', 'at least one', 'repeated', 'each day'],
+      },
+    ],
+    source: 'MMA 863 Normal / Binomial practice',
+  },
+  {
     id: 'photo-radar',
     title: 'Photo Radar',
     fingerprints: ['photo radar', '2000', '1%', 'ticketed', 'more than 25'],
@@ -466,5 +517,52 @@ export const TRAINING_CASES: TrainingCase[] = [
     values: { successes: 8, n: 30, confidence: 0.95 },
     rationale: 'Sample proportion CI from successes/n.',
     source: 'New Practice Problems 2020',
+  },
+  {
+    id: 'toronto-within-sd',
+    title: 'Toronto rentals · within one σ of mean',
+    fingerprints: [
+      'toronto',
+      '10,000',
+      '10000',
+      'within one standard deviation',
+      'sample mean with n of 36',
+    ],
+    prompt:
+      'Toronto rental market 10,000 units. Prices mean $2000 sd $240 (not normal). P(sample mean with n=36 within one standard deviation i.e. $240 of the actual mean)?',
+    solverId: 'sample-mean',
+    values: {
+      mean: 2000,
+      sd: 240,
+      n: 36,
+      N: 10000,
+      query: 'between',
+      lower: 1760,
+      upper: 2240,
+      useFpc: false,
+    },
+    rationale:
+      'Within $240 of μ → lower=2000−240=1760, upper=2240. SE=240/√36=40; FPC negligible (n≪N/20).',
+    source: 'User practice / apartment rental variant',
+  },
+  {
+    id: 'widgets-within-2',
+    title: 'Widgets · within 2 of mean',
+    fingerprints: ['widgets', 'within 2 of', 'true mean', 'sample of 25'],
+    prompt:
+      'Widgets have mean 50 and standard deviation 4. Sample of 25. Probability the sample mean is within 2 of the true mean?',
+    solverId: 'sample-mean',
+    values: {
+      mean: 50,
+      sd: 4,
+      n: 25,
+      query: 'between',
+      lower: 48,
+      upper: 52,
+      useFpc: false,
+    },
+    rationale:
+      'Within 2 of μ → lower=48, upper=52. SE=4/√25=0.8; P via NORM.DIST difference.',
+    source: 'Synthetic within-of-mean regression',
   },
 ]

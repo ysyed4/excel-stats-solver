@@ -163,6 +163,19 @@ export const EXAMPLES: ExampleProblem[] = [
     },
   },
   {
+    id: 'ontario-blackout-abcd',
+    solverId: 'normal',
+    title: 'Ontario blackout a–d',
+    prompt:
+      'N(1000,60), capacity 1100; then σ=50; then capacity 1200; then ≥1 blackout in 20 days.',
+    values: {
+      mean: 1000,
+      sd: 60,
+      query: 'greater',
+      x: 1100,
+    },
+  },
+  {
     id: 'toronto-mean',
     solverId: 'sample-mean',
     title: 'Toronto rents · sample mean',

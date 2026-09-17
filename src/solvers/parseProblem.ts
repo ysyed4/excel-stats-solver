@@ -2,6 +2,7 @@ import type { SolverId } from './types'
 import { EXAMPLES } from './examples'
 import { SOLVERS } from './types'
 import { TRAINING_CASES, type TrainingCase } from './trainingCorpus'
+import { solve } from './compute'
 
 export interface ParsedPart {
   id: string
@@ -86,6 +87,17 @@ function scoreBinomial(text: string): number {
   if (/success|failure|correct|defective|blue|pass/.test(t)) score += 1
   if (/five or more|at least\s+\d+|or more will be/.test(t)) score += 2
   if (/\bnext\s+\d+\b/.test(t) && /\d+\s*%/.test(t)) score += 4
+  // "at least one blackout over 20 independent / repeated days"
+  if (
+    /at least one|at least 1\b/.test(t) &&
+    /independent|repeated|each day|for\s+\d+\s+days/.test(t)
+  ) {
+    score += 10
+  }
+  if (/repeated over\s+\d+\s+(?:independent\s+)?days/.test(t)) score += 5
+  if (/repeated\s+each day\s+for\s+\d+/.test(t)) score += 8
+  if (/for\s+\d+\s+days/.test(t) && /at least one|blackout/.test(t)) score += 6
+  if (/\d+\s+independent\s+days/.test(t) && /blackout|at least/.test(t)) score += 5
   // Fixed population + success % (office / hoteling style)
   if (/\b\d+\s+employees?\b/.test(t) && /\d+(?:\.\d+)?\s*%/.test(t)) score += 7
   if (/want to work|shows? up|each day/.test(t) && /\d+\s*%/.test(t)) score += 3
@@ -104,6 +116,8 @@ function scoreNormal(text: string): number {
   if (/μ\s*=|σ\s*=/.test(t)) score += 3
   if (/kg|weight|height|demand|sales/.test(t) && /standard deviation/.test(t))
     score += 2
+  // Explicitly non-normal population → prefer CLT / sample-mean, not X~Normal
+  if (/\bnot normal\b|\bnon-?normal\b|\bisn't normal\b/.test(t)) score -= 6
   return score
 }
 
@@ -132,9 +146,20 @@ function scoreSampleMean(text: string): number {
   const t = text.toLowerCase()
   let score = 0
   if (/sample mean|x-?bar|x̄/.test(t)) score += 6
+  // Part (b) language: “your sample will have a mean…” without restating μ,σ,n
+  if (/your sample|sample will have a mean|sample(?:'s)? mean/.test(t)) score += 6
   if (/random sample of\s+\d+/.test(t) && /mean/.test(t) && !/confidence/.test(t))
     score += 5
   if (/finite population|units/.test(t) && /sample of/.test(t)) score += 2
+  if (/\bonly\s+\d+\s+units\b/.test(t) && /sample/.test(t)) score += 3
+  // P(|x̄ − μ| < X) / “within … of the mean” (not sample-size “within $E at 95%”)
+  if (
+    /within/.test(t) &&
+    /(?:actual\s+)?mean|standard deviation/.test(t) &&
+    !/how large|sample size|accuracy|confidence/.test(t)
+  ) {
+    score += 7
+  }
   // Total of n i.i.d. measurements → CLT on the sample mean (or sum)
   if (/first\s+\d+\s+(fish|items|observations|customers|units)/.test(t)) score += 5
   if (/in total.*weigh|weigh more than|total weight|weigh(?:ing)?\s+more than/.test(t))
@@ -145,6 +170,7 @@ function scoreSampleMean(text: string): number {
   ) {
     score += 4
   }
+  if (/\bnot normal\b|\bnon-?normal\b/.test(t) && /sample/.test(t)) score += 3
   return score
 }
 
@@ -217,6 +243,12 @@ function parseBinomial(text: string): Record<string, string | number | boolean> 
       firstMatch(text, [
         /of the next\s+(\d+)/i,
         /next\s+(\d+)\s+(?:cars?|people|customers|items|units|trials?)/i,
+        /repeated over\s+(\d+)\s+(?:independent\s+)?days/i,
+        /repeated\s+each day\s+for\s+(\d+)/i,
+        /each day for\s+(\d+)\s+days/i,
+        /for\s+(\d+)\s+days/i,
+        /over\s+(\d+)\s+independent\s+days/i,
+        /(\d+)\s+independent\s+days/i,
         /(\d+)\s*employees?/i,
         /(\d+)\s*[- ]?question/i,
         /(\d+)\s*trials?/i,
@@ -226,6 +258,12 @@ function parseBinomial(text: string): Record<string, string | number | boolean> 
       ]),
     ) ?? undefined
   if (n !== undefined) values.n = n
+
+  // P(at least one …) over n independent trials → Binomial, x=1
+  if (/at least one|at least 1\b/i.test(text)) {
+    values.query = 'atLeast'
+    values.x = 1
+  }
 
   const fridayPct = num(
     text.match(/friday[^.]*?(\d+(?:\.\d+)?)\s*%/i) ||
@@ -599,35 +637,53 @@ function parseUniform(text: string): Record<string, string | number | boolean> {
 }
 
 function parseNormal(text: string): Record<string, string | number | boolean> {
+  // Never emit lake-trout stubs (μ=15, σ=3, x=16). Only set fields found in text;
+  // multipart inheritance / mergeAutofillValues supply the rest.
   const values: Record<string, string | number | boolean> = {
-    mean: 15,
-    sd: 3,
     query: 'greater',
-    x: 16,
   }
 
   const mean = num(
     firstMatch(text, [
-      /expected value of\s+([\d,]+(?:\.\d+)?)/i,
-      /mean of\s+([\d,]+(?:\.\d+)?)/i,
-      /μ\s*=\s*([\d,]+(?:\.\d+)?)/i,
+      /expected value of\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /mean of\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /μ\s*=\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
       /N\s*\(\s*([-+]?[\d,]+(?:\.\d+)?)\s*,/i,
-      /mean\s+([\d,]+(?:\.\d+)?)/i,
+      /~\s*N\s*\(\s*([-+]?[\d,]+(?:\.\d+)?)\s*,/i,
+      /mean\s+\$?\s*([\d,]+(?:\.\d+)?)/i,
+    ]),
+  )
+  // Prefer part-local σ overrides ("falls to 50") over the shared setup σ
+  const sdOverride = num(
+    firstMatch(text, [
+      /(?:falls?|drops?|decreases?|reduced)\s+to\s+([\d,]+(?:\.\d+)?)/i,
+      /σ\s+falls\s+to\s+([\d,]+(?:\.\d+)?)/i,
+      /standard deviation\s+falls\s+to\s+([\d,]+(?:\.\d+)?)/i,
     ]),
   )
   const sd = num(
     firstMatch(text, [
-      /standard deviation of\s+([\d,]+(?:\.\d+)?)/i,
+      /standard deviation of\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /standard deviation\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /σ\s*(?:stays\s+)?(?:at\s+)?([\d,]+(?:\.\d+)?)/i,
       /σ\s*=\s*([\d,]+(?:\.\d+)?)/i,
       /N\s*\(\s*[-+]?[\d,]+(?:\.\d+)?\s*,\s*([\d,]+(?:\.\d+)?)/i,
+      /~\s*N\s*\(\s*[-+]?[\d,]+(?:\.\d+)?\s*,\s*([\d,]+(?:\.\d+)?)/i,
       /sd\s*=\s*([\d,]+(?:\.\d+)?)/i,
     ]),
   )
   if (mean !== undefined) values.mean = mean
-  if (sd !== undefined) values.sd = sd
+  if (sdOverride !== undefined) values.sd = sdOverride
+  else if (sd !== undefined) values.sd = sd
+
+  // “Within X of the mean” → μ ± X (derived; do not mis-parse nearby numbers)
+  const withWithin = applyWithinOfMeanBounds(text, values)
+  if (withWithin.query === 'between') {
+    return withWithin
+  }
 
   const between = text.match(
-    /between\s+([-+]?[\d,]+(?:\.\d+)?)\s+(?:kg\s+)?and\s+([-+]?[\d,]+(?:\.\d+)?)|([-+]?[\d,]+(?:\.\d+)?)\s*<\s*[Xx]\s*<\s*([-+]?[\d,]+(?:\.\d+)?)/i,
+    /between\s+\$?\s*([-+]?[\d,]+(?:\.\d+)?)\s+(?:kg\s+)?and\s+\$?\s*([-+]?[\d,]+(?:\.\d+)?)|([-+]?[\d,]+(?:\.\d+)?)\s*<\s*[Xx]\s*<\s*([-+]?[\d,]+(?:\.\d+)?)/i,
   )
   if (between) {
     values.query = 'between'
@@ -638,15 +694,25 @@ function parseNormal(text: string): Record<string, string | number | boolean> {
     return values
   }
 
-  if (/more than|greater than|or more|exceed|blackout|>\s*/i.test(text)) {
+  if (/more than|greater than|or more|exceed|blackout|>\s*|capacity|generation/i.test(text)) {
     values.query = 'greater'
     const x = num(
       firstMatch(text, [
-        /more than\s+([-+]?[\d,]+(?:\.\d+)?)/i,
-        /greater than\s+([-+]?[\d,]+(?:\.\d+)?)/i,
-        /≥\s*([-+]?[\d,]+(?:\.\d+)?)/i,
-        />\s*([-+]?[\d,]+(?:\.\d+)?)/i,
-        /capacity[^.]*?([\d,]+)/i,
+        // Prefer explicit raised capacity "(to 1,200)" before generic "by 100"
+        /\(to\s*([\d,]+(?:\.\d+)?)\)/i,
+        /capacity\s+rises?[^.]*?\bto\s*([\d,]+(?:\.\d+)?)/i,
+        /capacity\s*(?:is|=|of)?\s*([\d,]+(?:\.\d+)?)/i,
+        /max(?:imum)?\s+capacity\s*(?:is|=)?\s*([\d,]+(?:\.\d+)?)/i,
+        /max(?:imum)?\s+(?:electricity\s+)?generation\s*(?:is|=)?\s*([\d,]+(?:\.\d+)?)/i,
+        /generation\s*(?:is|=|of|capacity)?\s*([\d,]+(?:\.\d+)?)/i,
+        /(?:limit|threshold|cap)\s*(?:is|=|of)?\s*([\d,]+(?:\.\d+)?)/i,
+        /exceeds?\s+(?:capacity\s*(?:of\s*)?)?([\d,]+(?:\.\d+)?)/i,
+        /demand\s*>\s*([\d,]+(?:\.\d+)?)/i,
+        /more than\s*\$?\s*([-+]?[\d,]+(?:\.\d+)?)/i,
+        /greater than\s*\$?\s*([-+]?[\d,]+(?:\.\d+)?)/i,
+        /X\s*>\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+        /≥\s*\$?\s*([-+]?[\d,]+(?:\.\d+)?)/i,
+        />\s*\$?\s*([-+]?[\d,]+(?:\.\d+)?)/i,
         /([\d,]+(?:\.\d+)?)\s*kg or more/i,
       ]),
     )
@@ -655,8 +721,8 @@ function parseNormal(text: string): Record<string, string | number | boolean> {
     values.query = 'less'
     const x = num(
       firstMatch(text, [
-        /less than\s+([-+]?[\d,]+(?:\.\d+)?)/i,
-        /≤\s*([-+]?[\d,]+(?:\.\d+)?)/i,
+        /less than\s*\$?\s*([-+]?[\d,]+(?:\.\d+)?)/i,
+        /≤\s*\$?\s*([-+]?[\d,]+(?:\.\d+)?)/i,
       ]),
     )
     if (x !== undefined) values.x = x
@@ -782,13 +848,100 @@ function parseTDist(text: string): Record<string, string | number | boolean> {
   return values
 }
 
+/**
+ * Half-width for “within X of the mean” / “within one standard deviation”.
+ * Prefer an explicit dollar/number; else k×σ. Returns undefined for sample-size
+ * “within $E at 95% confidence” wording.
+ */
+export function extractWithinHalfWidth(
+  text: string,
+  sd?: number,
+): number | undefined {
+  if (/how large|sample size|sample would i need|accuracy|%\s*confidence/i.test(text)) {
+    return undefined
+  }
+  if (!/within/i.test(text)) return undefined
+
+  // Explicit amount: “within $240 of the (actual) mean”
+  const explicit = num(
+    firstMatch(text, [
+      /within\s+(?:approximately\s+)?\$\s*([\d,]+(?:\.\d+)?)\s+of\s+(?:the\s+)?(?:actual\s+)?mean/i,
+      /within\s+(?:approximately\s+)?([\d,]+(?:\.\d+)?)\s+of\s+(?:the\s+)?(?:actual\s+)?mean/i,
+    ]),
+  )
+  if (explicit !== undefined) return explicit
+
+  // Parenthetical amount: “within one standard deviation (i.e. $240)”
+  const parenthetical = num(
+    firstMatch(text, [
+      /within\s+(?:one\s+|1\s+)?standard\s+deviation\s*\([^)]*?\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /within[^.()]{0,40}\(i\.?e\.?\s*,?\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+    ]),
+  )
+  if (parenthetical !== undefined) return parenthetical
+
+  // “within k standard deviations” → k × σ
+  const kSd = text.match(
+    /within\s+(\d+(?:\.\d+)?)\s+standard\s+deviations?/i,
+  )
+  if (kSd && sd !== undefined) {
+    const k = Number(kSd[1])
+    if (Number.isFinite(k)) return k * sd
+  }
+
+  // “within one / 1 standard deviation” or “within σ” → use σ
+  if (
+    /within\s+(?:one|1)\s+standard\s+deviation/i.test(text) ||
+    /within\s+σ\b/i.test(text)
+  ) {
+    return sd
+  }
+
+  return undefined
+}
+
+/**
+ * Force query=between with lower=μ−X, upper=μ+X when the text describes a
+ * “within X of the mean” band. Overwrites any wrong AI-derived bounds.
+ */
+export function applyWithinOfMeanBounds(
+  text: string,
+  values: Record<string, string | number | boolean>,
+): Record<string, string | number | boolean> {
+  const meanRaw = values.mean
+  const mean =
+    typeof meanRaw === 'number'
+      ? meanRaw
+      : typeof meanRaw === 'string'
+        ? Number(String(meanRaw).replace(/,/g, ''))
+        : undefined
+  const sdRaw = values.sd
+  const sd =
+    typeof sdRaw === 'number'
+      ? sdRaw
+      : typeof sdRaw === 'string'
+        ? Number(String(sdRaw).replace(/,/g, ''))
+        : undefined
+  if (mean === undefined || !Number.isFinite(mean)) return values
+
+  const half = extractWithinHalfWidth(
+    text,
+    sd !== undefined && Number.isFinite(sd) ? sd : undefined,
+  )
+  if (half === undefined || !Number.isFinite(half)) return values
+
+  const next = { ...values }
+  next.query = 'between'
+  next.lower = mean - half
+  next.upper = mean + half
+  delete next.value
+  return next
+}
+
 function parseSampleMean(text: string): Record<string, string | number | boolean> {
+  // No Kingston/Toronto stubs — only fields found in text (plus useFpc when N qualifies).
   const values: Record<string, string | number | boolean> = {
-    mean: 2000,
-    sd: 240,
-    n: 36,
     query: 'greater',
-    value: 2080,
     useFpc: false,
   }
 
@@ -797,6 +950,8 @@ function parseSampleMean(text: string): Record<string, string | number | boolean
       /average(?:\s+\w+){0,3}\s+weighing\s+([\d,]+(?:\.\d+)?)/i,
       /average(?:\s+\w+){0,3}\s+weight(?:ing)?\s+of\s+([\d,]+(?:\.\d+)?)/i,
       /mean of\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /have mean\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /mean\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
       /μ\s*=\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
       /\$?\s*([\d,]+(?:\.\d+)?)\s*per month/i,
       /weighing\s+([\d,]+(?:\.\d+)?)\s*lbs?/i,
@@ -805,6 +960,7 @@ function parseSampleMean(text: string): Record<string, string | number | boolean
   const sd = num(
     firstMatch(text, [
       /standard deviation of\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /standard deviation\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
       /σ\s*=\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
     ]),
   )
@@ -812,12 +968,23 @@ function parseSampleMean(text: string): Record<string, string | number | boolean
     firstMatch(text, [
       /first\s+(\d+)\s+(?:fish|items|observations|customers|units)/i,
       /sample of\s+(\d+)/i,
+      /sample mean with n of\s+(\d+)/i,
+      /\bn\s+of\s+(\d+)/i,
       /\bn\s*=\s*(\d+)/i,
       /(\d+)\s+apartments/i,
     ]),
   )
   const N = num(
-    firstMatch(text, [/with\s+([\d,]+)\s+units/i, /population[^.]*?([\d,]+)/i, /\bN\s*=\s*([\d,]+)/i]),
+    firstMatch(text, [
+      /only\s+([\d,]+)\s+units/i,
+      /small[^.]*?([\d,]+)\s+units/i,
+      /huge[^.]*?([\d,]+)\s+units/i,
+      /with\s+([\d,]+)\s+units/i,
+      /(?:population|market)[^.]*?([\d,]+)\s+units/i,
+      /population[^.]*?([\d,]+)/i,
+      /\bN\s*=\s*([\d,]+)/i,
+      /([\d,]+)\s+units\b/i,
+    ]),
   )
 
   // Direct mean threshold, or total-of-n threshold → convert to x̄ threshold
@@ -848,7 +1015,16 @@ function parseSampleMean(text: string): Record<string, string | number | boolean
   if (n !== undefined) values.n = n
   if (N !== undefined) {
     values.N = N
+    // Checkbox label: apply FPC when n > N/20 (5% rule)
     if (n !== undefined && n > N / 20) values.useFpc = true
+  } else {
+    values.useFpc = false
+  }
+
+  // “Within X of the mean” → derived between band (must run before one-sided thresholds)
+  const withWithin = applyWithinOfMeanBounds(text, values)
+  if (withWithin.query === 'between') {
+    return withWithin
   }
 
   if (meanThreshold !== undefined) {
@@ -1095,7 +1271,7 @@ function matchTrainingCase(text: string): TrainingCase | null {
 }
 
 function trainingCaseToResult(tc: TrainingCase, sourceText?: string): ParseResult {
-  const parts: ParsedPart[] | undefined = tc.parts?.map((p, i) => ({
+  let parts: ParsedPart[] | undefined = tc.parts?.map((p, i) => ({
     id: `${tc.id}-${p.label}-${i}`,
     label: p.label,
     rationale: p.rationale,
@@ -1103,6 +1279,8 @@ function trainingCaseToResult(tc: TrainingCase, sourceText?: string): ParseResul
     values: { ...p.values },
     fingerprints: p.fingerprints,
   }))
+
+  if (parts) parts = finalizeParts(parts)
 
   const primary =
     parts && parts.length > 0
@@ -1112,10 +1290,13 @@ function trainingCaseToResult(tc: TrainingCase, sourceText?: string): ParseResul
     solverId: primary?.solverId ?? tc.solverId,
     values: { ...(primary?.values ?? tc.values) },
     confidence: 'high',
-    family: SOLVERS.find((s) => s.id === tc.solverId)?.category,
+    family: SOLVERS.find((s) => s.id === (primary?.solverId ?? tc.solverId))?.category,
     summary: `Matched training case “${tc.title}” (${tc.source}).`,
     matchedExampleId: tc.id,
-    notes: [tc.rationale, ...(parts?.map((p) => `${p.label}: ${p.rationale}`) ?? [])],
+    notes: [
+      primary?.rationale ?? tc.rationale,
+      ...(parts?.map((p) => `${p.label}: ${p.rationale}`) ?? []),
+    ],
     parts,
   }
 }
@@ -1162,6 +1343,176 @@ export function pickBestPart(parts: ParsedPart[], text: string): ParsedPart {
     if (!best || score > best.score) best = { part, score }
   }
   return best?.part ?? parts[0]
+}
+
+/**
+ * Post-process multipart results:
+ * - Link "at least one over n days" binomial p to the prior single-day Normal blackout prob
+ * - Inherit sample-mean params into later parts that refer to “your sample”
+ * - Replace LLM/heuristic rationale numbers with engine-computed Final Answers
+ */
+export function finalizeParts(parts: ParsedPart[]): ParsedPart[] {
+  let out = parts.map((p) => ({
+    ...p,
+    values: { ...p.values },
+  }))
+
+  const byLetter = (letter: string) =>
+    out.find((p) => p.label.replace(/^part\s+/i, '').trim().toUpperCase() === letter)
+
+  // Carry sample-mean context forward; reclassify stray Normal parts that only
+  // ask about “your sample” / sample mean without restating μ,σ,n.
+  {
+    let priorSm: ParsedPart | undefined
+    out = out.map((part) => {
+      if (part.solverId === 'sample-mean') {
+        const merged = priorSm
+          ? {
+              ...part,
+              values: { ...priorSm.values, ...part.values },
+            }
+          : part
+        priorSm = merged
+        return merged
+      }
+      if (priorSm && part.solverId === 'normal') {
+        const missingCore =
+          part.values.mean === undefined ||
+          part.values.sd === undefined ||
+          part.values.x === undefined
+        // Incomplete Normal after a sample-mean part → inherit sampling context
+        // rather than lake-trout stubs (μ=15, σ=3, x=16).
+        if (missingCore) {
+          const inherited: ParsedPart = {
+            ...part,
+            solverId: 'sample-mean',
+            values: {
+              ...priorSm.values,
+              ...(part.values.x !== undefined && part.values.value === undefined
+                ? { value: part.values.x }
+                : {}),
+              ...Object.fromEntries(
+                Object.entries(part.values).filter(
+                  ([k, v]) =>
+                    v !== undefined &&
+                    v !== '' &&
+                    !['mean', 'sd', 'x'].includes(k),
+                ),
+              ),
+            },
+            rationale:
+              'Same sampling distribution as the prior sample-mean part (inherited μ, σ, n, N).',
+          }
+          priorSm = inherited
+          return inherited
+        }
+      }
+      return part
+    })
+  }
+
+  const partA = byLetter('A')
+  const partD = byLetter('D')
+  if (
+    partA?.solverId === 'normal' &&
+    partD?.solverId === 'binomial' &&
+    (partD.values.query === 'atLeast' || partD.values.x === 1)
+  ) {
+    try {
+      const res = solve(partA.solverId, partA.values)
+      const emph = res.lines.find((l) => l.emphasis)
+      const p = emph ? Number(emph.value) : NaN
+      if (Number.isFinite(p) && p > 0 && p < 1) {
+        out = out.map((p0) =>
+          p0.id === partD.id
+            ? {
+                ...p0,
+                values: {
+                  ...p0.values,
+                  p,
+                  query: 'atLeast',
+                  x: 1,
+                },
+              }
+            : p0,
+        )
+      }
+    } catch {
+      // keep heuristic p
+    }
+  }
+
+  return out.map((part) => {
+    try {
+      const res = solve(part.solverId, part.values)
+      const emph = res.lines
+        .filter((l) => l.emphasis)
+        .map((l) => `${l.label} ≈ ${l.value}`)
+        .join('; ')
+      const formula = res.excelCalls[0] ?? ''
+      const computed = [formula, emph].filter(Boolean).join(' → ')
+      // Flag impossible right-tail answers for QA (e.g. stale x=16 with μ=1000)
+      const badTail = res.lines.some((l) => {
+        if (!l.emphasis) return false
+        const v = Number(l.value)
+        return v === 0 || v === 1
+      })
+      const warn = badTail
+        ? ' ⚠ Final answer is 0 or 1 — check that x/threshold was autofilled (not a stale default).'
+        : ''
+      return {
+        ...part,
+        rationale: computed
+          ? `${computed}${warn}`
+          : `${part.rationale}${warn}`,
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'solve failed'
+      return { ...part, rationale: `${part.rationale} (engine: ${msg})` }
+    }
+  })
+}
+
+/** Distribution-of-x̄ (a) + P(about that sample) (b) → one sample-mean solve. */
+function coalesceSampleMeanSetup(
+  parts: ParsedPart[],
+  split: { label: string; body: string }[],
+  fullText: string,
+): ParsedPart[] | null {
+  if (parts.length < 2) return null
+  const bodies = split.map((s) => s.body)
+  const hasDistQ = bodies.some((b) =>
+    /distribution of (?:the )?sample mean|what is the distribution/i.test(b),
+  )
+  const hasSampleProbQ = bodies.some(
+    (b) =>
+      /probability|how likely|chance/i.test(b) &&
+      /(?:your\s+)?sample|sample mean|x(?:bar|̄)?|mean greater|mean less/i.test(b),
+  )
+  if (!hasDistQ || !hasSampleProbQ) return null
+
+  // Collapse when every lettered part is sample-mean, or a Normal stub missing
+  // core params that clearly belongs to the same sampling setup.
+  const ok = parts.every((p) => {
+    if (p.solverId === 'sample-mean') return true
+    if (p.solverId !== 'normal') return false
+    const missingCore =
+      p.values.mean === undefined ||
+      p.values.sd === undefined ||
+      (p.values.x === undefined && p.values.value === undefined)
+    return missingCore
+  })
+  if (!ok) return null
+
+  return [
+    {
+      id: 'sample-mean-combined',
+      label: 'Sample Mean',
+      rationale: rationaleFor('sample-mean', fullText),
+      solverId: 'sample-mean',
+      values: parseSampleMean(fullText),
+    },
+  ]
 }
 
 function matchLegacyExample(text: string) {
@@ -1291,6 +1642,14 @@ function buildPart(
   ) {
     detected = local
   }
+  // "at least one over N days" must win over shared Normal demand language
+  if (
+    local &&
+    local.solverId === 'binomial' &&
+    /at least one|repeated|each day for\s+\d+/i.test(partBody)
+  ) {
+    detected = local
+  }
   if (!detected) return null
   const values = PARSERS[detected.solverId](combined)
   return {
@@ -1304,7 +1663,7 @@ function buildPart(
 
 function extractSharedContext(text: string): string {
   const cut = text.search(
-    /which of the following|more probable:|\ba[\.)]\s|\b1[\.)]\s/i,
+    /which of the following|more probable:|\b[a-e][\.)]\s+|\b[1-9]\d*[\.)]\s+/i,
   )
   if (cut > 0) return text.slice(0, cut).trim()
   return text
@@ -1322,11 +1681,35 @@ export function parseProblemText(raw: string): ParseResult | null {
   // by a training case that only covers earlier parts.
   if (split.length >= 2) {
     const shared = extractSharedContext(text)
-    let parts = split
-      .map((p, i) => buildPart(`part-${p.label}-${i}`, p.label, shared, p.body))
-      .filter((p): p is ParsedPart => p !== null)
+    // Accumulate prior lettered bodies so (b) “your sample” sees n from (a).
+    let priorBodies = ''
+    let parts: ParsedPart[] = []
+    for (let i = 0; i < split.length; i++) {
+      const p = split[i]
+      const ctx = [shared, priorBodies].filter(Boolean).join('\n')
+      const built = buildPart(`part-${p.label}-${i}`, p.label, ctx, p.body)
+      if (built) parts.push(built)
+      priorBodies = [priorBodies, p.body].filter(Boolean).join('\n')
+    }
 
-    // Overlay known training-part values when fingerprints match the part body
+    const coalesced = coalesceSampleMeanSetup(parts, split, text)
+    if (coalesced) {
+      const finalized = finalizeParts(coalesced)
+      const primary = finalized[0]
+      return {
+        solverId: primary.solverId,
+        values: primary.values,
+        confidence: 'high',
+        family: 'sampling',
+        summary: `Inferred ${solverTitle(primary.solverId)} (parts a/b share one sampling setup).`,
+        notes: [
+          primary.rationale,
+          'Distribution question (a) and sample-mean probability (b) solved together — no separate Normal tab.',
+        ],
+      }
+    }
+
+    // Overlay / repair from training when fingerprints match OR heuristic is incomplete
     if (trained?.parts?.length) {
       parts = parts.map((part) => {
         const letter = part.label.replace(/^part\s+/i, '').trim().toUpperCase()
@@ -1335,15 +1718,55 @@ export function parseProblemText(raw: string): ParseResult | null {
           return tl === letter || tl === part.label.toUpperCase()
         })
         if (!trainedPart) return part
+
+        const splitBody = split.find((s) => s.label.toUpperCase() === letter)?.body ?? ''
+        const bodyNorm = normalize(`${part.label} ${splitBody}`)
         const fps = (trainedPart.fingerprints ?? []).map((f) => normalize(f))
-        const bodyNorm = normalize(part.label + ' ' + (part.rationale || '') + ' ' + split.find((s) => s.label.toUpperCase() === letter)?.body)
         const hits = fps.filter((fp) => fp && bodyNorm.includes(fp)).length
-        const need = Math.max(1, Math.ceil(fps.length * 0.5))
-        if (fps.length && hits >= need) {
+        const need = Math.max(1, Math.ceil((fps.length || 1) * 0.5))
+        const fingerprintHit = fps.length > 0 && hits >= need
+
+        const missingThreshold =
+          part.solverId === 'normal' &&
+          part.values.query === 'greater' &&
+          (part.values.x === undefined ||
+            part.values.x === '' ||
+            part.values.x === 0)
+
+        const wrongFamilyForAtLeastOne =
+          trainedPart.solverId === 'binomial' &&
+          part.solverId !== 'binomial' &&
+          /at least one|repeated|each day for\s+\d+|for\s+\d+\s+days/i.test(
+            splitBody,
+          )
+
+        if (fingerprintHit || missingThreshold || wrongFamilyForAtLeastOne) {
+          // Prefer training values for repaired fields; keep heuristic overrides when present
+          const mergedValues = {
+            ...trainedPart.values,
+            ...            Object.fromEntries(
+              Object.entries(part.values).filter(([k, v]) => {
+                if (v === undefined || v === '') return false
+                if (missingThreshold && k === 'x') return false
+                if (k === 'x' && v === 0) return false
+                return true
+              }),
+            ),
+          }
+          // Ensure threshold comes from training when heuristic lacked it
+          if (missingThreshold && trainedPart.values.x !== undefined) {
+            mergedValues.x = trainedPart.values.x
+          }
           return {
             ...part,
-            solverId: trainedPart.solverId,
-            values: { ...trainedPart.values },
+            solverId:
+              wrongFamilyForAtLeastOne || fingerprintHit
+                ? trainedPart.solverId
+                : part.solverId,
+            values:
+              wrongFamilyForAtLeastOne || fingerprintHit
+                ? { ...trainedPart.values }
+                : mergedValues,
             rationale: trainedPart.rationale,
             fingerprints: trainedPart.fingerprints,
           }
@@ -1353,6 +1776,29 @@ export function parseProblemText(raw: string): ParseResult | null {
     }
 
     if (parts.length >= 2) {
+      parts = finalizeParts(parts)
+
+      const incompleteNormal = parts.some(
+        (p) =>
+          p.solverId === 'normal' &&
+          p.values.query === 'greater' &&
+          (p.values.x === undefined || p.values.x === '' || p.values.x === 0),
+      )
+      const dShouldBeBinomial =
+        /at least one/i.test(text) &&
+        /(?:repeated|each day|independent).{0,40}\d+\s+days|\d+\s+(?:independent\s+)?days/i.test(
+          text,
+        ) &&
+        parts.some(
+          (p) =>
+            /part\s*d/i.test(p.label) && p.solverId !== 'binomial',
+        )
+
+      // If structural parse is still broken but we have a labeled training case, trust it
+      if ((incompleteNormal || dShouldBeBinomial) && trained?.parts?.length) {
+        return trainingCaseToResult(trained, text)
+      }
+
       const primary = pickBestPart(parts, text)
       const family = parts.every((p) =>
         ['binomial', 'poisson'].includes(p.solverId),
@@ -1360,15 +1806,30 @@ export function parseProblemText(raw: string): ParseResult | null {
         ? 'discrete'
         : detectSolver(text)?.family
 
+      const missingNotes = parts
+        .filter(
+          (p) =>
+            p.solverId === 'normal' &&
+            p.values.query === 'greater' &&
+            (p.values.x === undefined || p.values.x === '' || p.values.x === 0),
+        )
+        .map(
+          (p) =>
+            `${p.label}: threshold x not found in pasted text — paste the capacity/limit (e.g. 1,100) or the full problem intro.`,
+        )
+
       return {
         solverId: primary.solverId,
         values: primary.values,
-        confidence: 'high',
+        confidence: missingNotes.length ? 'medium' : 'high',
         family,
         summary: `Comparison: detected ${parts
           .map((p) => `${p.label} → ${solverTitle(p.solverId)}`)
           .join('; ')}.`,
-        notes: parts.map((p) => `${p.label}: ${p.rationale}`),
+        notes: [
+          ...parts.map((p) => `${p.label}: ${p.rationale}`),
+          ...missingNotes,
+        ],
         parts,
       }
     }

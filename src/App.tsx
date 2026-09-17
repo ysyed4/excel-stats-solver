@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
 import { ProblemPaste } from './components/ProblemPaste'
 import { SolverForm } from './components/SolverForm'
 import { WalkthroughPanel } from './components/WalkthroughPanel'
 import { solve } from './solvers/compute'
 import { EXAMPLES } from './solvers/examples'
 import type { ParseResult, ParsedPart } from './solvers/parseProblem'
+import { mergeAutofillValues } from './solvers/values'
 import {
   CATEGORIES,
   SOLVERS,
@@ -60,28 +61,37 @@ function App() {
   const meta = SOLVERS.find((s) => s.id === solverId)!
   const examples = EXAMPLES.filter((e) => e.solverId === solverId)
 
+  // Defer solve so mid-keystroke empty fields don't immediately blank the panel
+  // with a misleading validation error while the other bound still looks filled.
+  const deferredValues = useDeferredValue(values)
+
   const result = useMemo(() => {
     try {
-      return { ok: true as const, data: solve(solverId, values) }
+      return { ok: true as const, data: solve(solverId, deferredValues) }
     } catch (err) {
       return {
         ok: false as const,
         message: err instanceof Error ? err.message : 'Could not solve',
       }
     }
-  }, [solverId, values])
+  }, [solverId, deferredValues])
 
   function fillSolver(
     id: SolverId,
     next: Record<string, string | number | boolean>,
+    fromAutofill = false,
   ) {
     setSolverId(id)
-    setValues({ ...DEFAULTS[id], ...next })
+    setValues(
+      fromAutofill
+        ? mergeAutofillValues(id, DEFAULTS[id], next)
+        : { ...DEFAULTS[id], ...next },
+    )
     setFormKey((k) => k + 1)
   }
 
   function selectSolver(id: SolverId) {
-    fillSolver(id, DEFAULTS[id])
+    fillSolver(id, DEFAULTS[id], false)
     setParsedParts(undefined)
     setActivePartId(null)
   }
@@ -89,13 +99,13 @@ function App() {
   function loadExample(id: string) {
     const example = EXAMPLES.find((e) => e.id === id)
     if (!example) return
-    fillSolver(example.solverId, example.values)
+    fillSolver(example.solverId, example.values, true)
     setParsedParts(undefined)
     setActivePartId(null)
   }
 
   function applyPart(part: ParsedPart) {
-    fillSolver(part.solverId, part.values)
+    fillSolver(part.solverId, part.values, true)
     setActivePartId(part.id)
   }
 
@@ -111,7 +121,7 @@ function App() {
     }
     setParsedParts(undefined)
     setActivePartId(null)
-    fillSolver(parsed.solverId, parsed.values ?? {})
+    fillSolver(parsed.solverId, parsed.values ?? {}, true)
   }
 
   return (

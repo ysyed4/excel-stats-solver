@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:ontario": "npx --yes tsx src/solvers/ontarioBlackout.test.ts",
+    "test:apartment": "npx --yes tsx src/solvers/apartmentRental.test.ts",
+    "test:toronto": "npx --yes tsx src/solvers/torontoWithin.test.ts",
+    "test:local": "npm run test:ontario && npm run test:apartment && npm run test:toronto"
   },
   "dependencies": {
     "jstat": "^1.9.6",

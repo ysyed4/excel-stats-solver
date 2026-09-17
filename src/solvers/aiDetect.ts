@@ -2,9 +2,12 @@ import { SOLVERS, type SolverId } from './types'
 import {
   parseProblemText,
   pickBestPart,
+  finalizeParts,
+  applyWithinOfMeanBounds,
   type ParseResult,
   type ParsedPart,
 } from './parseProblem'
+import { coerceValues } from './values'
 
 const SOLVER_IDS = new Set(SOLVERS.map((s) => s.id))
 
@@ -17,13 +20,7 @@ export function hasAiKey(): boolean {
 function sanitizeValues(
   values: Record<string, unknown>,
 ): Record<string, string | number | boolean> {
-  const out: Record<string, string | number | boolean> = {}
-  for (const [k, v] of Object.entries(values ?? {})) {
-    if (typeof v === 'boolean' || typeof v === 'string') out[k] = v
-    else if (typeof v === 'number' && Number.isFinite(v)) out[k] = v
-    else if (v != null && Number.isFinite(Number(v))) out[k] = Number(v)
-  }
-  return out
+  return coerceValues(values)
 }
 
 function sanitizeResult(raw: unknown, fallbackText: string): ParseResult {
@@ -36,9 +33,14 @@ function sanitizeResult(raw: unknown, fallbackText: string): ParseResult {
     throw new Error(`AI returned unknown solverId: ${solverId}`)
   }
 
-  const values = sanitizeValues(
+  let values = sanitizeValues(
     (obj.values as Record<string, unknown>) ?? {},
   )
+  // Re-derive μ±X for “within … of the mean” so wrong LLM arithmetic (e.g. 1789)
+  // cannot stick.
+  if (solverId === 'sample-mean' || solverId === 'normal') {
+    values = applyWithinOfMeanBounds(fallbackText, values)
+  }
   const confidence =
     obj.confidence === 'high' ||
     obj.confidence === 'medium' ||
@@ -56,17 +58,25 @@ function sanitizeResult(raw: unknown, fallbackText: string): ParseResult {
         const part = p as Record<string, unknown>
         const sid = String(part.solverId ?? '') as SolverId
         if (!SOLVER_IDS.has(sid)) return null
+        let partValues = sanitizeValues(
+          (part.values as Record<string, unknown>) ?? {},
+        )
+        if (sid === 'sample-mean' || sid === 'normal') {
+          partValues = applyWithinOfMeanBounds(fallbackText, partValues)
+        }
         return {
           id: `ai-part-${i}`,
           label: String(part.label ?? `Part ${i + 1}`),
           solverId: sid,
-          values: sanitizeValues((part.values as Record<string, unknown>) ?? {}),
+          values: partValues,
           rationale: String(part.rationale ?? rationale),
         } satisfies ParsedPart
       })
       .filter((p): p is ParsedPart => p !== null)
     if (parts.length < 2) parts = undefined
   }
+
+  if (parts) parts = finalizeParts(parts)
 
   const primary =
     parts && parts.length > 0 ? pickBestPart(parts, fallbackText) : undefined
@@ -81,7 +91,10 @@ function sanitizeResult(raw: unknown, fallbackText: string): ParseResult {
         ? obj.family
         : SOLVERS.find((s) => s.id === solverId)?.category,
     summary: `AI detected ${SOLVERS.find((s) => s.id === (primary?.solverId ?? solverId))?.title ?? solverId}.`,
-    notes: [rationale, `Source text length: ${fallbackText.length} chars.`],
+    notes: [
+      primary?.rationale ?? rationale,
+      `Source text length: ${fallbackText.length} chars.`,
+    ],
     parts,
   }
 }

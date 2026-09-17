@@ -14,10 +14,50 @@ import {
 } from '../excel/functions'
 import type { Diagram, SolveResult, SolverId, WalkthroughStep } from './types'
 
+/** Human-readable names so validation errors match the Inputs panel labels. */
+const FIELD_LABELS: Record<string, string> = {
+  mean: 'Population mean μ',
+  sd: 'Population σ',
+  n: 'Sample size n',
+  N: 'Population N',
+  value: 'Value',
+  lower: 'Lower',
+  upper: 'Upper',
+  x: 'x',
+  x2: 'Optional exact x₂',
+  z: 'z',
+  zLow: 'Known lower z',
+  zHigh: 'Known upper z',
+  p: 'Population proportion p',
+  lambda: 'Rate λ',
+  hours: 'Interval multiplier',
+  independentDays: 'Independent days',
+  a: 'Minimum a',
+  b: 'Maximum b',
+  probability: 'Probability',
+  alpha: 'α',
+  t: 't',
+  df: 'Degrees of freedom',
+  xbar: 'Sample mean x̄',
+  s: 'Sample s',
+  successes: 'Successes',
+  confidence: 'Confidence',
+  E: 'Margin of error E',
+}
+
+function fieldLabel(key: string): string {
+  return FIELD_LABELS[key] ?? key
+}
+
 function num(values: Record<string, unknown>, key: string): number {
   const raw = values[key]
-  const n = typeof raw === 'number' ? raw : Number(raw)
-  if (!Number.isFinite(n)) throw new Error(`Enter a valid number for ${key}`)
+  if (raw === '' || raw === null || raw === undefined) {
+    throw new Error(`Enter a valid number for ${fieldLabel(key)}`)
+  }
+  const n = typeof raw === 'number' ? raw : Number(String(raw).replace(/,/g, ''))
+  if (!Number.isFinite(n)) {
+    throw new Error(`Enter a valid number for ${fieldLabel(key)}`)
+  }
   return n
 }
 

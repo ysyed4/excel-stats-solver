@@ -71,13 +71,23 @@ export function ProblemPaste({
 
     onParsed(result, chosen ?? result.parts?.[0])
 
-    const filled = summarizeValues(chosen?.values ?? result.values ?? {})
+    const filledVals = chosen?.values ?? result.values ?? {}
+    const filled = summarizeValues(filledVals)
     const src =
       source === 'ai' ? 'AI' : 'Local training corpus / heuristics'
     const partNote = chosen ? ` · loaded ${chosen.label}` : ''
-    setError(null)
+    // Prefer engine-computed rationale (from finalizeParts) over free-text LLM math
+    const engineNote = chosen?.rationale?.includes('≈')
+      ? ` · ${chosen.rationale}`
+      : result.notes?.[0]?.includes('≈')
+        ? ` · ${result.notes[0]}`
+        : ''
+    const missing = (result.notes ?? []).filter((n) =>
+      /threshold x not found|stale default/i.test(n),
+    )
+    setError(missing.length ? missing.join(' ') : null)
     setStatus(
-      `${result.summary}${partNote} · filled ${filled} · via ${src}${
+      `${result.summary}${partNote} · filled ${filled}${engineNote} · via ${src}${
         result.family ? ` · ${result.family}` : ''
       }${message ? ` — ${message}` : ''}`,
     )

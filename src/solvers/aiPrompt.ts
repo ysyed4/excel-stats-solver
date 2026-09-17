@@ -6,6 +6,7 @@ const SOLVER_IDS = SOLVERS.map((s) => s.id)
 function fewShotBlock(): string {
   // Prefer cases that teach hard Poisson scaling + classic MMA discrete splits
   const preferredIds = [
+    'ontario-blackout',
     'z-unknown-lower',
     'kodiak-halibut-weight-total',
     'kodiak-halibut-each-day',
@@ -15,7 +16,6 @@ function fewShotBlock(): string {
     'red-blue-cars',
     'photo-radar',
     'winter-wonderland-slips',
-    'lightning-poisson',
   ]
   const preferred = preferredIds
     .map((id) => TRAINING_CASES.find((tc) => tc.id === id))
@@ -49,6 +49,11 @@ Decision rules (MMA distribution tree):
 - Counts at a rate over time/space, or mean count only (no n×p) → poisson (POISSON.DIST)
 - Equal likelihood over [a,b] → uniform
 - Continuous with μ,σ (or N(μ,σ)) → normal
+  · Always put the threshold in values.x as a plain number (1100 not "1,100")
+  · Blackout / demand > capacity → query=greater, x=capacity
+  · Example Ontario: mean=1000, sd=60, x=1100 → 1−NORM.DIST(1100,1000,60,TRUE)
+  · Do NOT invent numeric probabilities in rationale — leave short qualitative notes;
+    the app recomputes Final Answers from values.
 - Z ~ N(0,1) lookups → standard-normal
   · P(Z<z), P(Z>z), P(a<Z<b) → less | greater | between
   · P(? < Z < zHigh) = p → query=invBetweenLow, zHigh, probability=p
@@ -58,6 +63,10 @@ Decision rules (MMA distribution tree):
   · Find z with P(Z≤z)=p → query=inverse, probability=p
 - t lookups / unknown σ CI → t-dist or ci-mean-t
 - Sample mean probabilities → sample-mean
+  · “within X of the mean” / “within one standard deviation (i.e. $X)” →
+    query=between, lower=μ−X, upper=μ+X computed EXACTLY (2000−240=1760, not approximate)
+  · Large N (e.g. 10,000 units) with n≪N/20 → useFpc=false (or omit); still fill N if stated
+  · Small N with n>N/20 → useFpc=true and N set
 - Sample proportion probabilities → sample-proportion
 - CI for mean known σ → ci-mean-z; unknown σ → ci-mean-t; proportion → ci-proportion
 - Required sample size → n-mean or n-proportion
@@ -92,11 +101,18 @@ Return ONLY valid JSON (no markdown fences):
   "solverId": "<one of the ids>",
   "values": { ...numeric/string/boolean fields for that solver... },
   "confidence": "high" | "medium" | "low",
-  "rationale": "short explanation",
+  "rationale": "short qualitative note only — do not assert numeric probabilities",
   "family": "discrete" | "continuous" | "sampling",
-  "parts": [ { "label": "Part A", "solverId": "...", "values": {}, "rationale": "..." } ]
+  "parts": [ { "label": "Part A", "solverId": "...", "values": {}, "rationale": "qualitative only" } ]
 }
 Omit parts unless the problem clearly has distinct a/b setups. When both Kodiak (a) trip-total and (b) each-day appear, ALWAYS return parts for both.
+Numeric fields must be JSON numbers without thousands separators (1100 not "1,100"). Always include every required field (e.g. normal greater needs mean, sd, x).
+
+Ontario blackout example (must return 4 parts):
+(a) normal mean=1000 sd=60 query=greater x=1100
+(b) normal mean=1000 sd=50 query=greater x=1100
+(c) normal mean=1000 sd=60 query=greater x=1200
+(d) binomial n=20 p=<part a blackout prob> query=atLeast x=1
 
 Few-shot training from course practice:
 ${fewShotBlock()}

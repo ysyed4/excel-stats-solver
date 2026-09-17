@@ -46,7 +46,7 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
             />
           </Field>
           <Field label="x">
-            <NumberInput value={v('x', '10')} onChange={(x) => onChange('x', x)} />
+            <NumberInput value={v('x')} onChange={(x) => onChange('x', x)} />
           </Field>
           <Field label="Optional exact x₂" hint="also compute P(X = x₂)">
             <NumberInput
@@ -166,14 +166,16 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
             <>
               <Field label="Lower">
                 <NumberInput
-                  value={v('lower', '8')}
+                  value={v('lower')}
                   onChange={(x) => onChange('lower', x)}
+                  placeholder="lower"
                 />
               </Field>
               <Field label="Upper">
                 <NumberInput
-                  value={v('upper', '19')}
+                  value={v('upper')}
                   onChange={(x) => onChange('upper', x)}
+                  placeholder="upper"
                 />
               </Field>
             </>
@@ -186,7 +188,7 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
             </Field>
           ) : (
             <Field label="x">
-              <NumberInput value={v('x', '16')} onChange={(x) => onChange('x', x)} />
+              <NumberInput value={v('x')} onChange={(x) => onChange('x', x)} />
             </Field>
           )}
         </div>
@@ -342,22 +344,25 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
             <>
               <Field label="Lower">
                 <NumberInput
-                  value={v('lower', '1760')}
+                  value={v('lower')}
                   onChange={(x) => onChange('lower', x)}
+                  placeholder="μ − width"
                 />
               </Field>
               <Field label="Upper">
                 <NumberInput
-                  value={v('upper', '2240')}
+                  value={v('upper')}
                   onChange={(x) => onChange('upper', x)}
+                  placeholder="μ + width"
                 />
               </Field>
             </>
           ) : (
             <Field label="Value">
               <NumberInput
-                value={v('value', '2080')}
+                value={v('value')}
                 onChange={(x) => onChange('value', x)}
+                placeholder="threshold"
               />
             </Field>
           )}
