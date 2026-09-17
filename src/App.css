@@ -1,0 +1,402 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --ink: #1a2b2b;
+  --muted: #4f6464;
+  --paper: #f3f6f4;
+  --panel: #ffffff;
+  --line: #c9d5d1;
+  --teal: #0f6a62;
+  --teal-deep: #0a4a45;
+  --sand: #e8efe9;
+  --warn: #9b3b2e;
+  --shadow: 0 18px 40px rgba(15, 50, 45, 0.08);
+
+  --serif: 'Fraunces', Georgia, serif;
+  --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 12% 8%, rgba(15, 106, 98, 0.08), transparent 42%),
+    linear-gradient(180deg, #eef3f0 0%, var(--paper) 38%, #e7eeea 100%);
+  background-attachment: fixed;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+}
+
+#root {
+  width: min(1120px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 1.5rem 0 3rem;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.9em;
+}
+
+.app {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.hero {
+  padding: 1.4rem 1.5rem 1.2rem;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(232, 239, 233, 0.85)),
+    repeating-linear-gradient(
+      -18deg,
+      transparent,
+      transparent 10px,
+      rgba(15, 106, 98, 0.03) 10px,
+      rgba(15, 106, 98, 0.03) 11px
+    );
+  box-shadow: var(--shadow);
+}
+
+.brand {
+  margin: 0 0 0.35rem;
+  font-family: var(--serif);
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  color: var(--teal-deep);
+}
+
+.hero h1 {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: clamp(1.05rem, 2.2vw, 1.25rem);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.lede {
+  margin: 0.75rem 0 0;
+  max-width: 52rem;
+  color: var(--muted);
+}
+
+.lede code {
+  padding: 0.1rem 0.35rem;
+  background: var(--sand);
+  border: 1px solid var(--line);
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tab {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  padding: 0.55rem 0.95rem;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: white;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.rail,
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.rail {
+  padding: 1rem;
+}
+
+.rail h2,
+.panel-head h2,
+.results h3 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 650;
+  font-size: 1.15rem;
+}
+
+.solver-list {
+  list-style: none;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.solver {
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0.55rem 0.6rem;
+  cursor: pointer;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.solver:hover {
+  background: var(--sand);
+}
+
+.solver.active {
+  border-color: var(--teal);
+  background: rgba(15, 106, 98, 0.08);
+}
+
+.solver-title {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.solver-excel {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+
+.panel {
+  padding: 1.15rem 1.25rem 1.35rem;
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+  margin-bottom: 1rem;
+}
+
+.panel-head p {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+}
+
+.excel-pill {
+  white-space: nowrap;
+  padding: 0.35rem 0.55rem;
+  background: var(--sand);
+  border: 1px solid var(--line);
+  color: var(--teal-deep);
+}
+
+.examples {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.examples-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.example-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.example {
+  border: 1px solid var(--line);
+  background: #fbfcfb;
+  color: var(--ink);
+  padding: 0.4rem 0.65rem;
+  cursor: pointer;
+}
+
+.example:hover {
+  border-color: var(--teal);
+  color: var(--teal-deep);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.field-label {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+  align-items: baseline;
+  font-weight: 500;
+}
+
+.field-hint {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.85rem;
+}
+
+.input {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: #fcfdfc;
+  padding: 0.55rem 0.65rem;
+  color: var(--ink);
+}
+
+.input:focus {
+  outline: 2px solid rgba(15, 106, 98, 0.35);
+  border-color: var(--teal);
+}
+
+.check {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  color: var(--muted);
+}
+
+.results {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background:
+    linear-gradient(180deg, rgba(15, 106, 98, 0.06), transparent 60%),
+    var(--sand);
+  border: 1px solid var(--line);
+}
+
+.results h3 {
+  margin-bottom: 0.7rem;
+}
+
+.excel-calls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+}
+
+.excel-calls code {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0.4rem 0.55rem;
+  background: white;
+  border: 1px solid var(--line);
+  color: var(--teal-deep);
+}
+
+.lines {
+  margin: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+  padding: 0.45rem 0.55rem;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid transparent;
+}
+
+.line dt {
+  margin: 0;
+  color: var(--muted);
+}
+
+.line dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-weight: 500;
+}
+
+.line.emphasis {
+  border-color: var(--teal);
+  background: white;
+}
+
+.line.emphasis dt {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.line.emphasis dd {
+  color: var(--teal-deep);
+  font-size: 1.05rem;
+}
+
+.note,
+.error {
+  margin: 0.85rem 0 0;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+.error {
+  color: var(--warn);
+  font-weight: 500;
+}
+
+.footer {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.footer p {
+  margin: 0;
+  max-width: 60rem;
+}
+
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-head {
+    flex-direction: column;
+  }
+}
