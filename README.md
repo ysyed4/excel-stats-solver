@@ -2,11 +2,16 @@
 
 A small web app for solving continuous and discrete probability / statistics problems the same way MMA 863 (and Excel textbooks) do: by looking values up with Excel-style functions such as `BINOM.DIST`, `POISSON.DIST`, `NORM.DIST`, `NORM.S.INV`, and `T.INV`.
 
-It does **not** ask you to plug numbers into closed-form definitional formulas (e.g. the binomial PMF). Instead it mirrors the course workflow:
+Every solution includes a **pedagogical walkthrough** in the course’s six-step style:
 
-1. Identify the distribution / sampling setup  
-2. Translate the question into something Excel can return (often a CDF or `1 − CDF`)  
-3. Read the probability / critical value / confidence interval  
+1. Determine the distribution  
+2. Code what you know  
+3. Identify what to find  
+4. Sketch a diagram (number line / shaded density / CI bar)  
+5. Translate into an Excel-computable form  
+6. Solve, check reasonableness, and explain  
+
+It does **not** ask you to plug numbers into closed-form definitional formulas (e.g. the binomial PMF). 
 
 ## Features
 

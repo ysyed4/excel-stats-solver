@@ -37,10 +37,71 @@ export interface SolveLine {
   emphasis?: boolean
 }
 
+export interface WalkthroughStep {
+  number: number
+  title: string
+  body: string
+  excel?: string[]
+  values?: { label: string; value: string }[]
+}
+
+export interface NumberLineDiagram {
+  kind: 'number-line'
+  min: number
+  max: number
+  marks: { value: number; label: string }[]
+  highlightFrom?: number
+  highlightTo?: number
+  caption?: string
+}
+
+export interface UniformBarDiagram {
+  kind: 'uniform-bar'
+  a: number
+  b: number
+  regions: { from: number; to: number; label?: string }[]
+  caption?: string
+}
+
+export interface NormalShadeDiagram {
+  kind: 'normal-shade'
+  mean: number
+  sd: number
+  shade: 'left' | 'right' | 'between' | 'two-tail' | 'none'
+  x?: number
+  lower?: number
+  upper?: number
+  caption?: string
+}
+
+export interface CiIntervalDiagram {
+  kind: 'ci-interval'
+  center: number
+  lower: number
+  upper: number
+  caption?: string
+}
+
+export type Diagram =
+  | NumberLineDiagram
+  | UniformBarDiagram
+  | NormalShadeDiagram
+  | CiIntervalDiagram
+
+export interface Walkthrough {
+  title: string
+  distribution: string
+  find: string
+  steps: WalkthroughStep[]
+  diagram?: Diagram
+  explanation: string
+}
+
 export interface SolveResult {
   excelCalls: string[]
   lines: SolveLine[]
   note?: string
+  walkthrough: Walkthrough
 }
 
 export const CATEGORIES: { id: CategoryId; label: string }[] = [

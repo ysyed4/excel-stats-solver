@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { SolverForm } from './components/SolverForm'
+import { WalkthroughPanel } from './components/WalkthroughPanel'
 import { solve } from './solvers/compute'
 import { EXAMPLES } from './solvers/examples'
 import {
@@ -161,29 +162,9 @@ function App() {
           />
 
           <section className="results" aria-live="polite">
-            <h3>Result</h3>
+            <h3>Solution walkthrough</h3>
             {result.ok ? (
-              <>
-                <div className="excel-calls">
-                  {result.data.excelCalls.map((call) => (
-                    <code key={call}>{call}</code>
-                  ))}
-                </div>
-                <dl className="lines">
-                  {result.data.lines.map((line) => (
-                    <div
-                      key={line.label}
-                      className={line.emphasis ? 'line emphasis' : 'line'}
-                    >
-                      <dt>{line.label}</dt>
-                      <dd>{line.value}</dd>
-                    </div>
-                  ))}
-                </dl>
-                {result.data.note ? (
-                  <p className="note">{result.data.note}</p>
-                ) : null}
-              </>
+              <WalkthroughPanel result={result.data} />
             ) : (
               <p className="error">{result.message}</p>
             )}
