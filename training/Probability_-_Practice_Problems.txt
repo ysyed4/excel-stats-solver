@@ -1,0 +1,69 @@
+Recipe for Approaching Probability Problems
+Read and understand the problem and what is being requested.
+Identify the events of interest in the scenario or problem.
+Define events in formal notation.
+Note the relevant probabilities that are immediately available from the data.
+When using trees:
+Set up the structure so that you can identify the events of interest.
+Write the immediately available probabilities into the tree structure.
+Use the tree structure to fill in the rest.
+Pick out the probabilities that solve your problem and explain the results.
+When using formulas:
+Write out the immediately available probabilities in formal notation.
+Write down formula you eventually need to answer the question.
+Manipulate formulas as required to solve the problem.
+Explain the results.
+Probability Practice Problems
+Deck Stain: (This one really happened!) I wanted to stain my deck the other day.  Apparently, one should only do this if you are confident that it will not rain for 24 hours after applying the stain.  The weather forecast said there would be a 0% chance of precipitation for each of the first 20 hours and a 20% chance for each hour for the final four hours in that 24 hour period.
+The weather forecast is leaving out some important information regarding the events “rain in hour 21”, “rain in hour 22”, etc.  Specifically, it does not say whether the events are mutually exclusive, have independent probabilities or have some other form of conditional probability.  Explain in language a manager would understand what it would mean if:
+Raining in each of the last four hours were mutually exclusive events.
+Raining in each of the last four hours were independent events.
+Raining in each of the last four hours were neither mutually exclusive nor independent events.
+I decided to go ahead and stain the deck.  Assume that raining in each of the last four hours were independent events, what is the probability that my newly-stained deck will get rained on?
+Monty Hall: In your groups, discuss, but do not attempt to solve this one unless you are feeling fairly sophisticated with your understanding of probabilities.  At least wait until you have done the rest, many people stumble on this problem.  (Note: I have instructed the TAs NOT to help with this one, but I will provide a solution later.)
+You are in the final round of a game show.  There are three prizes behind three different doors, labeled ‘A’, ‘B’, and ‘C’.  One of the prizes is a brand new car.  The other two prizes are goats, and honestly, they are not even very good goats. 
+You have to choose one of three doors, A, B and C.  Once you have picked a door, the show host, ‘Monty Hall’ (affectionately known as Monte Hall to his closest friends!) will show you what is behind one of the doors that you did not pick – and he will invariably show you a goat.  Regardless of what door you picked, Monty will then give you the chance to switch your choice of doors.
+Suppose you pick door A and Monty shows you a goat behind doors B, should you switch your choice to door C?
+(Hint: Assume you do not want a goat.)
+Stocks:  A finance professor conducted a survey to determine how often stockbrokers used gut feel when trading stocks, the results are shown in a table below: 
+Response
+Frequency
+Never
+125
+Rarely
+324
+Sometimes
+552
+Most of the time 
+1257
+Always 
+2518
+Use this information to determine the probabilities of the various responses.
+You meet a stockbroker one morning who never to use gut feel when trading.  Is that an unusual event?  
+As the manager of a team of sales people, you need to decide which of your hard-working employees should attend a conference in Toronto.  Your team consists of five employees, conveniently (if oddly) named A, B, C, D and E.  
+Since everyone wants to go, but only two can attend, you decide to pick names 'out of a hat' to see who goes. 
+What is the sample space? 
+What is the probability that C and D attend the workshop? 
+What is the probability that C attends the workshop?
+What is the probability that E stays at home? 
+Rain: Where I live, it rains on about 18% of weekends, though it seldom rains on both Saturday and Sunday.  If it rains on Saturday, which occurs about 10% of the time, there is only a 5% chance it will also rain on Sunday. 
+What is the probability that it rains on any given Sunday?
+What is the probability that it rains both days?
+I went away for the weekend and came back on Monday.  It is clear that it rained that weekend – what is the probability it rained on Saturday?
+Late Again: Pretty much every professional knows that arriving late to a meeting is disrespectful to the other attendees, is generally disruptive, and really shouldn’t be tolerated.  Alice and Bob are both unreliable and everyone knows it – well everyone except Alice and Bob who seem to be unaware of this.  
+In a typical meeting, there is only a 0.1 chance that both Alice and Bob will be on time; a 0.2 chance that Alice will come on time but Bob will not; a 0.3 chance that Bob will be on time but Alice will not; and a 0.4 chance they will both be late.
+Given that Alice is late to a meeting, what is the probability that Bob will also be late?
+Recipes: I like to cook and have two recipe books on the dining room table.  The larger of the two has 100 recipes in it, of which about 80% are good ones; the smaller has about 50 recipes in it of which 90% are good ones.  For fun, I ask my wife to randomly pick a book and then randomly pick a recipe – with the promise that I will make it.  She did this using some computer algorithm that makes both choices completely at random.
+What is the probability that I get a good recipe?
+If it is a good recipe, what is the probability it came from the larger book? 
+Door Manufacturing: At a wooden door manufacturing company called Forest, three machines make doors Birch, Fir and Palm. Birch produces 35% of the doors and Fir makes 55% of them. 5% of the computing devices made by Birch are defective, as are 8% of the those made by Fir and 10% of those made by Palm.
+Draw a tree diagram to show the possible outcomes and probabilities. 
+What percentage doors are made by Palm?
+What is the probability that a randomly selected door made by Birch is not defective 
+Calculate the probability that a randomly selected door made by Forest is defective 
+Given that a door is defective, find the probability that it was not made by the Fir.
+Alice's Restaurant: I have been interviewing two potential restaurant employees: Alice and Bob, I would really like to hire at least one of them; and I would be happy with two. Not hiring anyone could create a problem for me.  
+Alice has a competing job offer and she seems to be indifferent between the two companies, so there is a 50% chance that she will accept my offer. Bob and Alice are friends, so if Alice accepts, Bob's chance of accepting doubles – to 0.6 vs. what it would have been if Alice did not accept.  
+What is the probability I will hire exactly one employee?
+Am I likely to have a problem?
+What is the expected number of employees hired.  

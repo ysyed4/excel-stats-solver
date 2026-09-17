@@ -1,0 +1,170 @@
+===== SHEET: Photo Radar =====
+R2: 1a
+R4: 2000 cars, about 1% ticketed, $200 per ticket
+R6: a. Prob that more than 25 get ticketed.  Draw number line, highlight bit above 25, identify 1 - P(X<=25) as answer and calculate
+R8: 0.1110646847802681
+R11: b. Expected revenue = Expected # Tickets * 200
+R13: = 200 * p * n
+R14: 4000
+R17: c. If extended to 9:00 AM -- scale revenue?
+R20: Difficult to say.  First we need to know if the number of cars scanned by the raidar would increase and if the speed characteristics would change.  I will assume that they will now scan 3 * 2000 cars = 6000 cars and their disribution of speeds remain the same.  That said, these assumptions are worth checking since traffic conditions are likely to be different between those times.  It is possible that the percentage of people speeding would increase since there would be less traffic congestion.  This could increase the rate of tickets for later time periods.
+R22: Using the convenient assumptions that things remain the same, it scales so revenue = 200 * 0.01 * 6000 = 12000 | 12000
+R24: d. Assumptions?
+R25: Two big assumptions here, that the speed of cars is independent, which gives rise to the independent 1% probability of a car getting a ticket and the assumption that 1% applies to all time periods.  Clearly taffic congestion links the speed of cars (breaking independence) and weather and other conditions (including congestion) imply that 1% would not apply every time.
+R27: We could address this somewhat by allowing several speed regimes conditional on weather and traffic congestion.  For example, under bad driving conditions, cars travel slower so speeding rates might be .001 rather than .01; under good conditions with low congestion, the rates might be higher and something like .02 might apply.  These are clearly empirical issues and we could address them by sampling.
+
+===== SHEET: Icecream =====
+R1: Day | Vanilla | Chocolate
+R2: 1 | 93 | 130
+R3: 2 | 91 | 70 | Ice Cream: The data file ‘ice cream’ contains data for sales of chocolate and vanilla ice cream in Kingston.  I have always thought that vanilla sells about the same as chocolate, but if they do not sell the same, I might need to change my ordering policy.
+R4: 3 | 155 | 161 | a.       State the appropriate null and alternative hypothesis for this problem.
+R5: 4 | 101 | 98 | b.       Use the data to test the hypothesis assuming the data are independent.  Report the p-value and interpreter the results.  Did you have to make any assumptions here?
+R6: 5 | 88 | 99 | c.       Use the data to test the hypothesis assuming the data are in matched pairs by day.  Report the p-value and interpreter the results.  Did you have to make any assumptions here?
+R7: 6 | 104 | 131 | d.       Explain in language a manager is likely to understand:
+R8: 7 | 83 | 104 | i.      When a paired t-test is appropriate.
+R9: 8 | 97 | 192 | ii.      Why a paired t-test is a more powerful test when it is appropriate.
+R10: 9 | 131 | 115
+R11: 10 | 113 | 95
+R12: 11 | 140 | 138 | 1a.  Hypotheses
+R13: 12 | 166 | 157
+R14: 13 | 106 | 87
+R15: 14 | 169 | 166 | Pick alpha: this is likely to be a short term ordering policy, not a big cost if we get it wrong, perhaps 10%, given low cost of failure.
+R16: 15 | 149 | 183
+R17: 16 | 138 | 143 | H1: <We should change our ordering practice> if < the icecream sales quantities for vanilla and chocloate are not the same>
+R18: 17 | 151 | 154
+R19: 18 | 173 | 148 | H1: Mu_V <> Mu_C
+R20: 19 | 133 | 130
+R21: 20 | 163 | 172 | H0: Mu_V = MU_C
+R22: 21 | 93 | 160
+R23: 22 | 162 | 164 | b. Independent | c. Matched Pairs
+R24: 23 | 142 | 184
+R25: 24 | 152 | 162
+R26: 25 | 125 | 173 | t-Test: Two-Sample Assuming Equal Variances | t-Test: Paired Two Sample for Means
+R27: 26 | 145 | 158
+R28: 27 | 119 | 146 | Vanilla | Chocolate | Vanilla | Chocolate
+R29: 28 | 210 | 176 | Mean | 133.36666666666667 | 144.43333333333334 | Mean | 133.36666666666667 | 144.43333333333334
+R30: 29 | 130 | 171 | Variance | 1018.7229885057474 | 1028.4609195402309 | Variance | 1018.7229885057474 | 1028.4609195402309
+R31: 30 | 179 | 166 | Observations | 30 | 30 | Observations | 30 | 30
+R32: Pooled Variance | 1023.5919540229892 | Pearson Correlation | 0.59571938101534816
+R33: Hypothesized Mean Difference | 0 | Hypothesized Mean Difference | 0
+R34: df | 58 | df | 29
+R35: t Stat | -1.3396736853515401 | t Stat | -2.1069486239912365
+R36: P(T<=t) one-tail | 9.2788558384368947E-2 | P(T<=t) one-tail | 2.1944358012556075E-2
+R37: t Critical one-tail | 1.671552762454859 | t Critical one-tail | 1.6991270265334986
+R38: P(T<=t) two-tail | 0.18557711676873789 | Fail to reject H0 | P(T<=t) two-tail | 4.388871602511215E-2 | Reject at 10% (or even 5%)
+R39: t Critical two-tail | 2.0017174841452352 | t Critical two-tail | 2.0452296421327048
+R42: d. Explain in managerial language when each method is appropriate.
+
+===== SHEET: Electric Cars =====
+R1: Trip # | Km on Charge | a. Hypotheses
+R2: 1 | 298 | H1: <I would buy an electric car> if <the average distance one could travel on a charge was greater than 280 kms>
+R3: 2 | 321 | H1: Mu > 280
+R4: 3 | 259 | H0: Mu <= 280
+R5: 4 | 274
+R6: 5 | 290 | b. Alpha - should be based on cost of failure.  Buying a car that doesn't do the job is a big deal to me so alpha should be small.  Say 1%.
+R7: 6 | 291 | Then explain what alpha means.
+R8: 7 | 308
+R9: 8 | 312
+R10: 9 | 330 | c. Perform test (next page)
+R11: 10 | 247 | p-value = 0.0557…
+R12: 11 | 274
+R13: 12 | 347 | d.  You cannot tell anything about a single trip's liklihood of exceeding 280 kms.
+R14: 13 | 289
+R15: 14 | 241
+R16: 15 | 271
+R17: 16 | 329
+R18: 17 | 288
+R19: 18 | 280
+R20: 19 | 252
+R21: 20 | 256
+R22: 21 | 255
+R23: 22 | 267
+R24: 23 | 250
+R25: 24 | 314
+R26: 25 | 313
+R27: 26 | 318
+R28: 27 | 291
+R29: 28 | 314
+R30: 29 | 322
+R31: 30 | 355
+R32: 31 | 237
+R33: 32 | 299
+R34: 33 | 294
+R35: 34 | 205
+R36: 35 | 289
+R37: 36 | 271
+R38: 37 | 284
+R39: 38 | 353
+R40: 39 | 290
+R41: 40 | 318
+R42: 41 | 272
+R43: 42 | 300
+R44: 43 | 319
+R45: 44 | 272
+R46: 45 | 243
+R47: 46 | 218
+R48: 47 | 285
+R49: 48 | 295
+R50: 49 | 294
+
+===== SHEET: Electric Car Test =====
+R1: Trip # | Km on Charge
+R2: 1 | 298
+R3: 2 | 321 | Std Dev S | 32.951159487408411
+R4: 3 | 259 | Samp Size n | 49
+R5: 4 | 274 | Mean | 287.63265306122452
+R6: 5 | 290
+R7: 6 | 291 | t | 1.6214473863655152
+R8: 7 | 308 | 0.94426345515993737
+R9: 8 | 312 | 5.573654484006263E-2
+R10: 9 | 330
+R11: 10 | 247
+R12: 11 | 274
+R13: 12 | 347
+R14: 13 | 289
+R15: 14 | 241
+R16: 15 | 271
+R17: 16 | 329
+R18: 17 | 288
+R19: 18 | 280
+R20: 19 | 252
+R21: 20 | 256
+R22: 21 | 255
+R23: 22 | 267
+R24: 23 | 250
+R25: 24 | 314
+R26: 25 | 313
+R27: 26 | 318
+R28: 27 | 291
+R29: 28 | 314
+R30: 29 | 322
+R31: 30 | 355
+R32: 31 | 237
+R33: 32 | 299
+R34: 33 | 294
+R35: 34 | 205
+R36: 35 | 289
+R37: 36 | 271
+R38: 37 | 284
+R39: 38 | 353
+R40: 39 | 290
+R41: 40 | 318
+R42: 41 | 272
+R43: 42 | 300
+R44: 43 | 319
+R45: 44 | 272
+R46: 45 | 243
+R47: 46 | 218
+R48: 47 | 285
+R49: 48 | 295
+R50: 49 | 294
+
+===== SHEET: Deck Stain =====
+R3: a. Defnining terms
+R4: Mutually Exclusive - if it rains in one of the hours, it cannot rain in any of the others.
+R5: Independent - That it rains in any of the hours has no impact on the liklihood of it raining on the others.
+R6: Neither - raining in one period will impact the probability of it rainining in the others, but we cannot say how at the moment.
+R8: b.
+R9: Assuming independence, we have the basis for binomial distribution:
+R10: n=4, p = 0.2, event of interest is X > 0 so determine 1 - P(X=0)
+R12: 0.59040000000000004

@@ -17,6 +17,44 @@ export const EXAMPLES: ExampleProblem[] = [
     },
   },
   {
+    id: 'red-blue-cars',
+    solverId: 'poisson',
+    title: 'Red car / blue car',
+    prompt:
+      'Red car once every 2 minutes; 30% of cars blue. Compare P(more than 9 red in 20 min) vs P(≥5 blue in next 15).',
+    values: {
+      lambda: 10,
+      hours: 1,
+      query: 'moreThan',
+      x: 9,
+    },
+  },
+  {
+    id: 'office-space',
+    solverId: 'binomial',
+    title: 'Office Space (hoteling)',
+    prompt:
+      'Hoteling: 20 desks, 50 employees, 30% want office (35% Friday). Do we have a problem? (b) Average 15 want office.',
+    values: {
+      n: 50,
+      p: 0.3,
+      query: 'moreThan',
+      x: 20,
+    },
+  },
+  {
+    id: 'photo-radar',
+    solverId: 'binomial',
+    title: 'Photo Radar',
+    prompt: '2000 cars scanned, 1% ticketed. P(more than 25 ticketed)?',
+    values: {
+      n: 2000,
+      p: 0.01,
+      query: 'moreThan',
+      x: 25,
+    },
+  },
+  {
     id: 'support-poisson',
     solverId: 'poisson',
     title: 'Support call volume',

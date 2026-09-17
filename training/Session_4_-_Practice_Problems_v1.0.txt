@@ -1,0 +1,21 @@
+MMA 863 – Session 4 Practice Problems
+This actually happened: two workers from unrelated companies are supposed to show up at my house sometime this morning: an appliance repairperson and an electrician.  The appliance repairperson claims she will arrive between 8:00 AM and 12:00 noon.  The electrician claims he will arrive between 10:00 AM and 12:00 noon.  Other than this information, I have absolutely no idea when they will arrive, all I know is that I have a phone call from 10:00 to 11:00 AM and it is currently 7:30 AM.
+As described in the story above, are the events of each person’s arrival independent, mutually exclusive or somehow dependent?  Explain your reasoning.
+What is the probability that the appliance repairperson will arrive before my phone call starts?
+What is the probability that both of them will arrive while I am on the phone?
+Suppose that as of 11:00 AM, neither have arrived, what is the probability that at least one will arrive in the next 10 min?
+Boots: My wife has been admiring a particular pair of boots on Amazon.ca.  She tells me that the price changes every day but that she thinks it is normally distributed with a mean of 300 and a standard deviation of 30.
+Apparently the price this morning was $240.  She asked me to calculate the probability that she will see a lower price in the next five days.  What should I tell her?
+She has begun to question her belief about the distribution of daily boot prices, so she gave me her data on historic prices:  275.80, 272.52, 296.38, 322.18, 278.52, 280.08, 321.99, 314.39, 267.18, 304.13 over the past few days.  What is the 95% confidence interval on this mean of the price?  
+Using the data in part b, how large a sample would I need to estimate the true mean within $5 with 95% accuracy?
+Questions within questions: A question about this practice assignment:
+According to one random Google search, 12.5% of English words contain the letter ‘e’.  How many randomly selected words would I have to check if I wanted to know the percentage of words on this exam containing the letter ‘e’, within 1% and a confidence of 90%? 
+Assuming I sampled the number you proposed in part a and found that 12.0% of them contained the letter ‘e’ what would the 90% confidence interval be?
+It may not seem like it, but this assignment has a finite number of words on it.  One could count them all and then count the number of words that contain the letter ‘e’.  That would appear to render the idea of a confidence interval irrelevant.  Is a confidence interval really irrelevant in that situation? Is there an argument one way or another or perhaps both? Discuss and explain the results of your thinking. 
+I run a pizza restaurant that is only open on Thursday, Friday and Saturday evenings from 5:30 to 9:30.  Over that time, orders for pizza come into the restaurant randomly with a distribution that is approximately normal with mean 20 and standard deviation of 5 pizzas per hour.  
+A pizza requires 1 kg of dough, 250 g of cheese and a mix of other ingredients depending on the order.  On Thursday AM I have 100 kg of dough on hand and am placing an order for more dough.  The order will arrive the morning of the next day (Friday) on a truck from the bakery.  This order is intended to last two weeks, when the next order will arrive, also on a Friday morning. 
+(NOTE: I am more interested in the thinking process than I am the answer.  Please be sure to have a chain of reasoning that could convince 'your client' that the answer is correctly structured.)
+How likely is it that I will run out of dough before the end of day Thursday?
+How much dough should I order to have no more than a 1% chance of stocking out by the time the next delivery arrives?  
+Not many customers order double cheese.  In fact, of the last 49 pizzas that were ordered, only 7 had double cheese.  With this information, calculate the 95 % confidence interval on the proportion of customers who order double cheese.
+What assumptions did you make that you believe are worth confirming with the client.

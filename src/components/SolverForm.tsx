@@ -39,6 +39,7 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
               onChange={(x) => onChange('query', x)}
               options={[
                 { value: 'atLeast', label: 'P(X ≥ x)' },
+                { value: 'moreThan', label: 'P(X > x)' },
                 { value: 'atMost', label: 'P(X ≤ x)' },
                 { value: 'equal', label: 'P(X = x)' },
               ]}

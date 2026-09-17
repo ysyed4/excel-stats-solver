@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
+import { ProblemPaste } from './components/ProblemPaste'
 import { SolverForm } from './components/SolverForm'
 import { WalkthroughPanel } from './components/WalkthroughPanel'
 import { solve } from './solvers/compute'
 import { EXAMPLES } from './solvers/examples'
+import type { ParseResult, ParsedPart } from './solvers/parseProblem'
 import {
   CATEGORIES,
   SOLVERS,
@@ -11,7 +13,7 @@ import {
 } from './solvers/types'
 import './App.css'
 
-const DEFAULTS: Record<SolverId, Record<string, string | number | boolean>> = {
+export const DEFAULTS: Record<SolverId, Record<string, string | number | boolean>> = {
   binomial: { n: 20, p: 0.5, query: 'atLeast', x: 10, x2: 15 },
   poisson: { lambda: 1.5, hours: 1, query: 'equal', x: 0 },
   uniform: {
@@ -43,11 +45,11 @@ const DEFAULTS: Record<SolverId, Record<string, string | number | boolean>> = {
 }
 
 function App() {
-  const [category, setCategory] = useState<CategoryId>('discrete')
   const [solverId, setSolverId] = useState<SolverId>('binomial')
   const [values, setValues] = useState(DEFAULTS.binomial)
+  const [parsedParts, setParsedParts] = useState<ParsedPart[] | undefined>()
+  const [activePartId, setActivePartId] = useState<string | null>(null)
 
-  const solvers = SOLVERS.filter((s) => s.category === category)
   const meta = SOLVERS.find((s) => s.id === solverId)!
   const examples = EXAMPLES.filter((e) => e.solverId === solverId)
 
@@ -62,81 +64,82 @@ function App() {
     }
   }, [solverId, values])
 
-  function selectCategory(next: CategoryId) {
-    setCategory(next)
-    const first = SOLVERS.find((s) => s.category === next)!
-    setSolverId(first.id)
-    setValues({ ...DEFAULTS[first.id] })
-  }
-
   function selectSolver(id: SolverId) {
     setSolverId(id)
     setValues({ ...DEFAULTS[id] })
+    setParsedParts(undefined)
+    setActivePartId(null)
   }
 
   function loadExample(id: string) {
     const example = EXAMPLES.find((e) => e.id === id)
     if (!example) return
+    setSolverId(example.solverId)
     setValues({ ...DEFAULTS[example.solverId], ...example.values })
+    setParsedParts(undefined)
+    setActivePartId(null)
+  }
+
+  function applyPart(part: ParsedPart) {
+    setSolverId(part.solverId)
+    setValues({ ...DEFAULTS[part.solverId], ...part.values })
+    setActivePartId(part.id)
+  }
+
+  function applyParsed(parsed: ParseResult, part?: ParsedPart) {
+    if (parsed.confidence === 'low' && Object.keys(parsed.values).length === 0) {
+      return
+    }
+    if (parsed.parts && parsed.parts.length > 0) {
+      setParsedParts(parsed.parts)
+      applyPart(part ?? parsed.parts[0])
+      return
+    }
+    setParsedParts(undefined)
+    setActivePartId(null)
+    setSolverId(parsed.solverId)
+    setValues({ ...DEFAULTS[parsed.solverId], ...parsed.values })
   }
 
   return (
-    <div className="app">
-      <header className="hero">
-        <p className="brand">Excel Stats Solver</p>
-        <h1>Solve probability problems the Excel way</h1>
-        <p className="lede">
-          Discrete and continuous lookups using the same function names as
-          Microsoft Excel — <code>BINOM.DIST</code>, <code>POISSON.DIST</code>,{' '}
-          <code>NORM.DIST</code>, <code>T.INV</code>, and more. Built around MMA
-          863 review problems.
-        </p>
-      </header>
+    <div className="shell">
+      <aside className="toc" aria-label="Table of contents">
+        <div className="toc-brand">
+          <p className="brand">Excel Stats Solver</p>
+          <p className="toc-tag">MMA 863 · Excel lookups</p>
+        </div>
 
-      <nav className="tabs" aria-label="Problem category">
-        {CATEGORIES.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            className={c.id === category ? 'tab active' : 'tab'}
-            onClick={() => selectCategory(c.id)}
-          >
-            {c.label}
-          </button>
-        ))}
-      </nav>
+        <nav className="toc-nav">
+          {CATEGORIES.map((category) => (
+            <TocSection
+              key={category.id}
+              category={category.id}
+              label={category.label}
+              activeId={solverId}
+              onSelect={selectSolver}
+            />
+          ))}
+        </nav>
+      </aside>
 
-      <div className="layout">
-        <aside className="rail">
-          <h2>Solvers</h2>
-          <ul className="solver-list">
-            {solvers.map((s) => (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  className={s.id === solverId ? 'solver active' : 'solver'}
-                  onClick={() => selectSolver(s.id)}
-                >
-                  <span className="solver-title">{s.title}</span>
-                  <span className="solver-excel">{s.excel}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </aside>
+      <div className="workspace">
+        <header className="hero">
+          <h1>{meta.title}</h1>
+          <p className="lede">{meta.blurb}</p>
+          <code className="excel-pill">{meta.excel}</code>
+        </header>
+
+        <ProblemPaste
+          onParsed={applyParsed}
+          parts={parsedParts}
+          activePartId={activePartId}
+          onSelectPart={applyPart}
+        />
 
         <main className="panel">
-          <div className="panel-head">
-            <div>
-              <h2>{meta.title}</h2>
-              <p>{meta.blurb}</p>
-            </div>
-            <code className="excel-pill">{meta.excel}</code>
-          </div>
-
           {examples.length > 0 ? (
             <div className="examples">
-              <span className="examples-label">Load example</span>
+              <span className="examples-label">Quick-load curated example</span>
               <div className="example-row">
                 {examples.map((ex) => (
                   <button
@@ -153,6 +156,7 @@ function App() {
             </div>
           ) : null}
 
+          <h2 className="section-title">Inputs</h2>
           <SolverForm
             solverId={solverId}
             values={values}
@@ -162,7 +166,7 @@ function App() {
           />
 
           <section className="results" aria-live="polite">
-            <h3>Solution walkthrough</h3>
+            <h2 className="section-title">Solution walkthrough</h2>
             {result.ok ? (
               <WalkthroughPanel result={result.data} />
             ) : (
@@ -170,15 +174,53 @@ function App() {
             )}
           </section>
         </main>
-      </div>
 
-      <footer className="footer">
-        <p>
-          Probabilities come from Excel-style distribution functions, not
-          hand-written closed-form PMF definitions. Translate inequalities the
-          way the course does: e.g. P(X ≥ 10) → 1 − BINOM.DIST(9, n, p, TRUE).
-        </p>
-      </footer>
+        <footer className="footer">
+          <p>
+            Paste a problem to autofill, or pick a solver from the left. Answers
+            use Excel-style functions (e.g. P(X ≥ 10) → 1 − BINOM.DIST(9, n, p,
+            TRUE)), not closed-form PMF formulas.
+          </p>
+        </footer>
+      </div>
+    </div>
+  )
+}
+
+function TocSection({
+  category,
+  label,
+  activeId,
+  onSelect,
+}: {
+  category: CategoryId
+  label: string
+  activeId: SolverId
+  onSelect: (id: SolverId) => void
+}) {
+  const items = SOLVERS.filter((s) => s.category === category)
+  return (
+    <div className="toc-section">
+      <h2>{label}</h2>
+      <ol>
+        {items.map((s, index) => (
+          <li key={s.id}>
+            <button
+              type="button"
+              className={s.id === activeId ? 'toc-link active' : 'toc-link'}
+              onClick={() => onSelect(s.id)}
+            >
+              <span className="toc-index">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <span className="toc-text">
+                <span className="toc-title">{s.title}</span>
+                <span className="toc-excel">{s.excel}</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ol>
     </div>
   )
 }

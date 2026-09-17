@@ -1,0 +1,152 @@
+===== SHEET: Repair Work =====
+R1: This actually happened: two workers from unrelated companies are supposed to show up at my house sometime this morning: an appliance repair person and an electrician.  The appliance repair person claims she will arrive between 8:00 AM and 12:00 noon.  The electrician claims he will arrive between 10:00 AM and 12:00 noon.  Other than this information, I have absolutely no idea when they will arrive, all I know is that I have a phone call from 10:00 to 11:00 AM and it is currently 7:30 AM.
+
+a. As described in the story above, are the events of each person’s arrival independent, mutually exclusive or somehow dependent?  Explain your reasoning.
+
+b. What is the probability that the appliance repair person will arrive before my phone call starts?
+
+c. What is the probability that both of them will arrive while I am on the phone?
+
+d. Suppose that as of 11:00 AM, neither have arrived, what is the probability that at least one will arrive in the next 10 min?
+R2: a.
+R3: The events are independent because the arrival time of one does not influence the arrival time of the other.
+R5: b.
+R6: Use a uniform distribution because we have no other information so we are dealing with a situation of 'maximal ignorance'.
+R8: Phone call starts at 10:00 so appliance repair person would have to arrive between 8 and 10 to arrive before the
+R9: phone call.  Note that we use 10:00 instead of 'just before 10:00' because there is 0 probability she will arrive
+R10: at exactly 10:00.
+R12: Draw a picture (very hard to do here so I will skip it)
+R13: Identify area from 8 to 10 on a uniform distribution from 8 to 12.
+R14: that reflects 1/2 of the area, so there is a .5 probability she will arrive before the phone call starts.
+R17: c.
+R18: Use uniforms, draw pictures, identify probability that each of them will arrive while you are on the phone.
+R19: Then multiply that probability together because P(A&B) = P(A)*P(B) for independent events.
+R21: P(Repair while on phone) = 1/4 = 0.25
+R22: P(Electrician while on phone) = 1/2 = 0.5
+R24: Probability they both will arrive while I am on the phone  = 0.25 * 0.5 = 0.125
+R27: d.
+R28: Now the uniform distribution becomes condensed to from 11:00 AM to 12:00 for each of them.  Draw the pictures
+R29: calculate individual probability and use binomial or some other method (e.g. 1 - probability that neither arrive).
+R31: P(Electrician) = P(Repair Person) = 1/6
+R33: P(X>0) = 1 - P(X=0)
+R34: 0.30555555555555558
+R36: or
+R37: 0.30555555555555547
+
+===== SHEET: Boots =====
+R2: My wife has been admiring a particular pair of boots on Amazon.ca.  She tells me that the price changes every day but that she thinks it is normally distributed with a mean of 300 and a standard deviation of 30.
+
+a. Apparently the price this morning was $240.  She asked me to calculate the probability that she will see a lower price in the next five days.  What should I tell her?
+
+b. She has begun to question her belief about the distribution of daily boot prices, so she gave me her data on historic prices:  275.80, 272.52, 296.38, 322.18, 278.52, 280.08, 321.99, 314.39, 267.18, 304.13 over the past few days.  What is the 95% confidence interval on this mean of the price?  Also, using this data, could we conclude that the distribution was normal?
+
+c. Using the data in part b, how large a sample would I need to estimate the true mean within $5 with 95% accuracy?
+R4: a. Boots: My wife has been admiring a particular pair of boots on Amazon.ca.  She tells me that the price changes every day but that she thinks it is normally distributed with a mean of 300 and a standard deviation of 30.
+R5: Use a normal distribution with mean 300, std 30 and calculate the probability of a price lower than 240.
+R6: Start with z-score
+R8: Z = (X_bar - Mu ) / Sigma_X
+R9: = (240-300) / 30 = -2
+R12: z
+R13: P(Z<-2)
+R14: so a probaility of about 0.02275 each day. | Standard | General
+R15: 2.2750131948179191E-2 | 2.2750131948179191E-2
+R16: Now you have a binomial with N = 5, p=0.02275 | -2.0000000000000004 | -2.0000000000000004
+R17: event = x>0
+R18: 1 - p(x=0) | 0.89130861106973402 | 0.10869138893026598
+R19: 0.10869138893026586
+R20: b. She has begun to question her belief about the distribution of daily boot prices, so she gave me her data on historic prices:  275.80, 272.52, 296.38, 322.18, 278.52, 280.08, 321.99, 314.39, 267.18, 304.13 over the past few days.  What is the 95% confidence interval on this mean of the price?  Also, using this data, could we conclude that the distribution was normal?
+R22: Confidence interval for continuous variables around X_bar is given by:
+R24: CI = X_bar +/- t alpha/2 df = (n-1) * Sx/n^.5
+R26: Data is
+R30: 275.8
+R31: 272.52
+R32: 296.38
+R33: 322.18
+R34: 278.52
+R35: 280.08
+R36: 321.99
+R37: 314.39
+R38: 267.18
+R39: 304.13
+R41: n | 10
+R42: x_bar | 293.31699999999995
+R43: S_x | 21.192924946259257
+R44: S_X_bar | 6.7017913111180798
+R46: t df = 9, alpha = 5% | 2.2621571627982049
+R48: Uppper Bound | 308.47750521802448
+R49: Lower Bound | 278.15649478197543
+R52: c. Using the data in part b, how large a sample would I need to estimate the true mean within $5 with 95% accuracy?
+R54: n = ((Z alpha/2 * Sigma_x) / E ) ^2  (rounded up and above 30)
+R56: Z alpha / 2 | 1.9599639845400536
+R57: Sigma | 21.192924946259257
+R58: E | 5
+R60: n | 69.014123003684048
+R61: n round up | 70
+
+===== SHEET: Pizza =====
+R3: I run a pizza restaurant that is only open on Thursday, Friday and Saturday evenings from 5:30 to 9:30.  Over that time, orders for pizza come into the restaurant randomly with a distribution that is approximately normal with mean 20 and standard deviation of 5 pizzas per hour.  A pizza requires 1 kg of dough, 250 g of cheese and a mix of other ingredients depending on the order.  
+
+On Thursday AM I have 100 kg of dough on hand and am placing an order for more dough.  The order will arrive the morning of the next day (Friday) on a truck from the bakery.  This order is intended to last two weeks when the next order will arrive, also on a Friday morning.  
+
+a. How likely is it that I will run out of dough before the end of day Thursday?
+
+b. Suppose that I actually have 200kg of dough on hand on the start of day Thursday. How much dough should I order to have no more than a 1% chance of stocking out by the time the next delivery arrives?  (With 200kg of dough on hand, you can assume you make it through Thursday.)  
+
+c. Not many customers order double cheese.  In fact, of the last 49 pizzas that were ordered, only 7 had double cheese.  With this information, calculate the 95 % confidence interval on the proportion of customers who order double cheese.
+R5: The thinking in this problem is actually at the core of many inventory management problems.  We have a string of demands, whose sums or averages, under appropriate circumstances could be modelled as a normal distribution with the application of a CLT.  Here we have assumed a normally distributed demand so no CLT is required, but you can probably see how the CLT could relax this assumption.
+R8: a. How likely is it that I will run out of dough before the end of day Thursday?
+R10: I have 100 kg of dough, which means I can make 100 pizzas.  The number of pizzas sold per hour is normally distrubuted with mean 20 and standard deviation 5, but I am open for 4 hours, so I need
+R11: X_Sum_4 ~ N(4 * 20, 4^.5 *5) ~ N(80,10)
+R13: Event run out of dough -> Have orders for more than 100 pizzas -> X_Sum>100, X_Sum ~ N(80, 10)
+R15: 2.2750131948179209E-2
+R16: So there is about a 2.275 % chance of running out of dough.
+R19: b. Suppose that I actually have 200kg of dough on hand on the start of day Thursday. How much dough should I order to have no more than a 1% chance of stocking out by the time the next delivery arrives?  (With 200kg of dough on hand, you can assume you make it through Thursday.)
+R21: This is basically the same question as above, only the time frame is longer.  Here you just need to pay attention to the length of time.  Here a picture or number line (or better yet look at a calendar) might help.
+R23: The order you are making today is supposed to last | Days | Hrs of operation.
+R24: Thursday, Friday and Saturday of this week, | 3 | 12
+R25: Thursday, Friday and Saturday of next week, | 3 | 12
+R26: Thursday of the following week because the next order arrives on Friday | 1 | 4
+R27: 7 | 28 | Total
+R29: So total demand is ~N(28*20 = 560, 28^.5*5 = 26.457…)
+R31: Mu_X_Sum_28 | 560
+R32: Sigma_X_Sum_28 | 26.457513110645905
+R34: We need the quantity x such that P(X>x) = 0.01
+R36: 621.54937937735872
+R38: So we need about 621.5 kg to last until the next order arrives and we have 200, so we need to order about 421.5 kg --> or practically speaking, whatever is the next larger order quantity is.
+R41: c. Not many customers order double cheese.  In fact, of the last 49 pizzas that were ordered, only 7 had double cheese.  With this information, calculate the 95 % confidence interval on the proportion of customers who order double cheese.
+R43: This one is just a proportions confidence interval question
+R45: n | 49
+R46: p | 0.14285714285714285
+R47: Alpha | 0.05
+R48: Z_Alpha / 2 | 1.9599639845400536
+R50: LB | 4.4879353543769207E-2
+R51: UB | 0.24083493217051649
+R53: or 0.142857142857143 +/- 1.95996398454005 *0.0499895865874118
+
+===== SHEET: Questions within Questions =====
+R3: 3. Questions within questions: A question about this practice assignment:
+
+a. According to one random Google search, 12.5% of English words contain the letter ‘e’.  How many randomly selected words would I have to check if I wanted to know the percentage of words on this exam containing the letter ‘e’, within 1% and a confidence of 90%? 
+b. Assuming I sampled the number you proposed in part a and found that 12.0% of them contained the letter ‘e’ what would the 90% confidence interval be?
+c. It may not seem like it, but this assignment has a finite number of words on it.  One could count them all and then count the number of words that contain the letter ‘e’.  That would appear to render the idea of a confidence interval irrelevant.  Is a confidence interval really irrelevant in that situation? Is there an argument one way or another or perhaps both? Discuss and explain the results of your thinking.
+R6: a. According to one random Google search, 12.5% of English words contain the letter ‘e’.  How many randomly selected words would I have to check if I wanted to know the percentage of words on this exam containing the letter ‘e’, within 1% and a confidence of 90%?
+R9: This question is about determinining the sample size associated with a proportion.  Apparently 12.5 % or 0.125 of words contain the letter 'e' -- so we can use that as an initial estimate and use the 'liberal' method of estimating sample size:
+R11: P-hat = 0.125 | 0.125
+R12: E = 0.01 | 0.01
+R13: Alpha = 10% | 0.1
+R14: Z_alpha/2 | 1.6448536269514715
+R15: Formula n = ((Zalpha/2 (P(1-p))^1/2)/E)^2 | 2959.1881529168554
+R16: Round up | 2960
+R19: b. Assuming I sampled the number you proposed in part a and found that 12.0% of them contained the letter ‘e’ what would the 90% confidence interval be?
+R22: Now we have to use the data from the sample above to determine a confidence interval.
+R24: P-hat = 0.12 | 0.12
+R25: Sample size  n = 2960 | 2960
+R26: Alpha = 10% | 0.1
+R27: Z_alpha/2 | 1.6448536269514715
+R29: P_Hat +/- Z alpha/2 (P(1-P)/n)^.5
+R30: UB | 0.1298245656797008
+R31: LB | 0.11017543432029918
+R34: c. It may not seem like it, but this assignment has a finite number of words on it.  One could count them all and then count the number of words that contain the letter ‘e’.  That would appear to render the idea of a confidence interval irrelevant.  Is a confidence interval really irrelevant in that situation? Is there an argument one way or another or perhaps both? Discuss and explain the results of your thinking.
+R37: We will discuss this in class / office hours but think about issues of:
+- Data Generating Process
+- Cost of complete enumeration vs sampling in general

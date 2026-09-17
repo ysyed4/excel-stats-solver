@@ -1,0 +1,507 @@
+===== SHEET: Executive Education =====
+R2: 1.       I teach an executive education class in Toronto that has 60 students in it.  The class lasts for three hours and the students ask questions at a rate of about 3 questions per hour.  In the many classes I have taught, I cannot recall a single student ever asking two questions in a class.
+R4: a.       Model this situation with an appropriate binomial distribution and determine the probability of receiving more than 5 questions in a class.  Explain why your model is appropriate.
+R5: b.       Model this situation with an appropriate Poisson distribution and determine the probability of receiving more than 5 questions in a class.  Explain why your model is appropriate.
+R6: c.       Based on the discussion in our class, explain in managerial language which of these models, if any, is the right one and why.
+R7: d.       Should I be surprised that no student has ever asked two questions?
+R10: a.
+R11: To model this as a binomial we need n and p.  We know that np = the average and in this case the average is 3 per hour * 3 hrs = 9
+R12: also, we know that n = 60.  Finally, we need to assume that each student's probability of asking a question is independent
+R13: and that they each have the same probibility, then p = 9/60 =
+R14: 0.15
+R16: From this, P(X>5) = 1 - P(X<=5)
+R17: 0.90320149127308103
+R19: b.
+R20: To model as a Poisson, we note that lambd = 3 per hour or 9 per class from this,
+R21: P(X>5) = 1 - P(X<=5)
+R22: 0.8843094791589422
+R24: c.
+R25: Neither of these models is really the right one, though the Poisson probably fits the story a bit better.
+R26: We had to make some extra assumptions for the binomial that may not be justified, for example, we assumed
+R27: that no student could ask a question twice and that any student asking a question was an equal and independent
+R28: probability event.  These are not strictly warranted, though the results are quite similar.
+R30: d.
+R31: To say if we are surprised, we need to calculate the probability, doing so requires assumptions.  If we go with
+R32: the ones made for the binomial, then the probabiliy that 9 questions would come from different students is give by:
+R34: (60/60)*(59/60)*(58/60)…(52/60)
+R35: 0.53231480771604933
+R36: So the probability that nine random questions (the average number in a class) would produce at least two from the same person is pretty high at:
+R37: 0.46768519228395067
+R39: Given that it has never occurred in any of many classes seems surpising -- unless a different process is at work.
+
+===== SHEET: Q2 =====
+R2: 1.       As a manager in a consulting company, I had to fly into the client’s site from Austin every week.  Two of my consultants had to fly in as well, one from Boston, the other from Chicago.  All three flights are scheduled to arrive at 10:00 AM.  The flight from Austin was late 5% of the time; the flights from Boston and Chicago were late about 10% and 20% of the time respectively.  Assume that the arrival times are independent.
+R4: a.       Assuming the consultant from Chicago is on time, what is the probability that she will be waiting for exactly one person?
+R5: b.       What is the probability that the consultant from Boston will be late for at least 4 of the next 8 arrivals?
+R6: c.       Assuming that exactly one of my consultants is late, what is the probability that it is the one flying in from Chicago?
+R7: d.       Is the assumption of independent arrival times a reasonable one?  Explain why / why not.
+R10: Let A, B, C indicate on time peron from Austin, Boston and Chicago
+R12: a. Event C has occurred, find the probability that exactly one of the others is late so: P(A & ~B) + P(~A & B)
+R14: A, B, C are independent so:
+R16: P(A|B) = P(A) and P(A|~B) = P(A)
+R18: P(A|~B) = P(A&~B)/P(~B)
+R20: P(A&~B)=P(A|~B)P(~B)=P(A)P(~B)
+R22: 0.19
+R24: Similarly P(~A&B) = P(~A)P(B)
+R25: 4.0000000000000008E-2
+R27: So P(Waiting for exactly one) = 0.23
+R30: b.
+R31: Binomial, n = 8, p = .1, P(X>=4) = 1 - P(X<=3)
+R32: 5.0243500000000108E-3
+R35: c.  This one was more challenging than I anticpated, I'll write it up rather than trying to type it.  Rest assured that I won't ask one as difficult as this part on the exam.
+R38: d.
+R39: The independence assumption is not reasonable since weather and airport congestion on the runway may make
+R40: it such that planes from distinct cities tend to be late or on time togther.
+
+===== SHEET: Q3 =====
+R2: 1.       Here are warmup problems:
+R3: a.       I have a list of 10 songs stored on my phone, in random mode it plays songs completely at random.  I like only like three of the songs (it was Tracy’s playlist!)  If I play 5 songs, what is the probability that at least four of them are songs I like?
+R5: b.       After a great deal of work, you have determined that the sales of a product is given by the following function of price:  Q(P) = 100 – 0.5P where P is the price in dollars; the cost per unit is fixed at $10.  Find the price that maximizes profit.
+R7: c.       A small company is producing desk chairs by hand at a cost of $20 per unit for both labor and materials. It can use a machine that costs $1000 per week to operate and $10 per unit for materials.  Demand is currently 90 units and is growing continuously at a rate of 10% per week.
+R9: Write out and solve the equations to determine the following:
+R10: i.      At what quantity should they switch over to using the machine?
+R11: ii.      Approximately when should that switch occur?
+R14: a.
+R16: Probability that one of them is a song I like = 3/10, so with completely random we have a binomial distribution
+R17: n = 5, p = 3 / 10 = 0.3
+R19: P(X>=4) = 1 - P(X<=3)
+R20: 3.078000000000003E-2
+R22: b.
+R23: Need to turn Q(P), P and cost into a profit function:
+R25: Profit = Price*Quantity - Cost * Quantity - Fixed Cost
+R26: Profit = P*Q(P) - 10 * Q(P)
+R27: = P*(100-0.5P) - 10*(100-0.5P)
+R29: Multiply through then take derivative, set = 0, find critical value and confirm maximum.  Use wolfram to check.
+R31: profit is maximized at p = 105.
+
+===== SHEET: Q4 =====
+R2: 1.       This actually happened: two workers from unrelated companies are supposed to show up at my house sometime this morning: an appliance repair person and an electrician.  The appliance repair person claims she will arrive between 8:00 AM and 12:00 noon.  The electrician claims he will arrive between 10:00 AM and 12:00 noon.  Other than this information, I have absolutely no idea when they will arrive, all I know is that I have a phone call from 10:00 to 11:00 AM and it is currently 7:30 AM.
+R3: a.       As described in the story above, are the events of each person’s arrival independent, mutually exclusive or somehow dependent?  Explain your reasoning.
+R4: b.       What is the probability that the appliance repair person will arrive before my phone call starts?
+R5: c.       What is the probability that both of them will arrive while I am on the phone?
+R6: d.       Suppose that as of 11:00 AM, neither have arrived, what is the probability that at least one will arrive in the next 10 min?
+R8: a.
+R9: The events are independent because the arrival time of one does not influence the arrival time of the other.
+R11: b.
+R12: Use a uniform distribution because we have no other information.
+R13: Phone call starts at 10:00 so appliance repair person would have to arrive between 8 and 10 to arrive before the
+R14: phone call.  Note that we use 10:00 instead of 'just before 10:00' because there is 0 probability she will arrive
+R15: at exactly 10:00.
+R17: Draw a picture (very hard to do here so I will skip it)
+R18: Identify area from 8 to 10 on a uniform distribution from 8 to 12.
+R19: that reflects 1/2 of the area, so there is a .5 probability she will arrive before the phone call starts.
+R22: c.
+R23: Use uniforms, draw pictures, identify probability that each of them will arrive while you are on the phone.
+R24: Then multiply that probability together because P(A&B) = P(A)*P(B) for independent events.
+R26: P(Repair while on phone) = 1/4 = 0.25
+R27: P(Electrician while on phone) = 1/2 = 0.5
+R29: Probability they both will arrive while I am on the phone  = 0.25 * 0.5 = 0.125
+R32: d.
+R33: Now the uniform distribution becomes condensed to from 11:00 AM to 12:00 for each of them.  Draw the pictures
+R34: calculate individual probability and use binomial or some other method (e.g. 1 - probability that neither arrive).
+R36: P(Electrician) = P(Repair Person) = 1/6
+R38: P(X>0) = 1 - P(X=0)
+R39: 0.30555555555555558
+R41: or
+R42: 0.30555555555555547
+
+===== SHEET: Q5 =====
+R2: 1.       Greener by design has been working in Montreal performing environmental audits for several years.  Lately the owner has been concerned that the sales are falling and in particular that average daily revenue from audits in July are lower than those in June.  If sales are falling, she plans to abandon the market and will stop investing in further advertising.  (Data on tab GBD Montreal.)
+R3: a.       Construct an appropriate null and alternative hypothesis for this problem.
+R4: b.       Draw a picture of how this test would work.
+R5: c.       Perform an appropriate test, present your p-value and interpret the results based on an alpha of 10%.
+R6: d.       Based on these results, should she abandon the Montreal market?  Provide a reasonably comprehensive answer.
+R9: a.
+R10: H1 -> if sales are falling, she should abandon montreal
+R11: -> If average sales in July are below sales in June,  she should sell.
+R12: -> H1: Mu_July < Mu_June or Mu_July - Mu_June < 0
+R13: -> H0: Mu_July - Mu_June >= 0
+R15: b.
+R16: Draw picture
+R19: c.
+R20: Test at alpha = 10% (Data below)
+R22: Day | June | July
+R23: 1 | 7970 | 8030
+R24: 2 | 8263 | 8290
+R25: 3 | 8141 | 8114
+R26: 4 | 7872 | 8103
+R27: 5 | 7704 | 7329
+R28: 6 | 7945 | 7681
+R29: 7 | 7962 | 8311
+R30: 8 | 7896 | 7078
+R31: 9 | 7564 | 7659
+R32: 10 | 7330 | 7545
+R33: 11 | 7718 | 7912
+R34: 12 | 8524 | 7259
+R35: 13 | 7971 | 7706
+R36: 14 | 8095 | 7531
+R37: 15 | 7681 | 8507
+R38: 16 | 8496 | 7618
+R39: 17 | 7967 | 8147
+R40: 18 | 8333 | 7755
+R41: 19 | 8113 | 8443
+R42: 20 | 7893 | 7906
+R43: 21 | 8306 | 7882
+R45: Average | 7987.8095238095239 | 7847.9047619047615
+R47: t-Test: Two-Sample Assuming Unequal Variances | t-Test: Two-Sample Assuming Equal Variances
+R49: June | July | June | July
+R50: Mean | 7987.8095238095239 | 7847.9047619047615 | Mean | 7987.8095238095239 | 7847.9047619047615
+R51: Variance | 89334.261904761894 | 150588.19047619047 | Variance | 89334.261904761894 | 150588.19047619047
+R52: Observations | 21 | 21 | Observations | 21 | 21
+R53: Hypothesized Mean Difference | 0 | Pooled Variance | 119961.22619047618
+R54: df | 38 | Hypothesized Mean Difference | 0
+R55: t Stat | 1.3089006944248525 | df | 40
+R56: P(T<=t) one-tail | 9.9214286921067263E-2 | t Stat | 1.3089006944248525
+R57: t Critical one-tail | 1.6859544601667387 | P(T<=t) one-tail | 9.9019077256260371E-2
+R58: P(T<=t) two-tail | 0.19842857384213453 | t Critical one-tail | 1.6838510133356521
+R59: t Critical two-tail | 2.0243941639119702 | P(T<=t) two-tail | 0.19803815451252074
+R60: t Critical two-tail | 2.0210753903062737
+R62: The p-value is 0.099214, so you would just barely reject at alpha = 10%
+R64: Note that the test here should not be a paired one as there is no obvious common source of variation.
+R65: note that, as mentioned in class, the equal or unequal variance assumption makes little difference.
+R67: c.
+R68: I recommend that she does not exit the Montreal market.  She has selected an alpha that was very high,
+R69: at 10% and the p-value was pretty much at this level.  She should proably not take such a decision when
+R70: approximately 10% of the time such a result as extreme as this would occur if the null were true.
+R71: It is also worth noting that even if the difference exists and can be measured in a statistical sense, that
+R72: doesn't mean it is large enough to matter.
+R74: Additional things one could say -- perhaps rather than testing for a difference, she should consider estimating
+R75: the profitability of the markets with a confidence interval and make her decision on that basis.
+
+===== SHEET: Q6 =====
+R3: 1.       Greener by design has been working in Vancouver and Toronto performing environmental audits for several years.  The owner thinks that, given her staff, the two markets should be equally profitable, but fears the Vancouver office may be underperforming and require a change in management.  She has been friends with the current manager for years and would prefer to keep him, but business is business (isn’t it?)  Using the data provided in the excel file, advise her.
+R4: a.       Construct an appropriate null and alternative hypothesis for this problem.
+R5: b.       Draw a picture of how this test would work.
+R6: c.       Perform an appropriate test, present your p-value provide and justify a choice of alpha.
+R7: d.       Based on these results, should she change the management in the Vancouver market?  Provide a reasonably comprehensive answer.
+R10: a.
+R11: H1 -> If Vancouver is under-performing, fire the friend who has been managing it for years.
+R12: -> (You should already be thinking that maybe this is a bad approach, but whatever, a client is a client.)
+R13: -> If Vancouver Sales < Toronto Sales then fire friend.
+R14: -> H1: Mu_V < Mu_T or Mu_V - Mu_T < 0
+R15: -> H0: Mu_V - Mu_T >= 0
+R18: b.
+R19: Draw picture
+R21: c.
+R23: The data is daily between two regions so there is a credible source of common variation -- days are in matched
+R24: pairs and some seem to be better sales days than others.  This suggests a matched pairs test.
+R26: In terms of alpha -- it seems to me that this should be very small as we do not want to risk firing a friend unless
+R27: there is very clear evidence that sales are lower.  I'd propose 1%.
+R29: Toronto | Vancouver
+R30: 42887 | 8247 | 7250
+R31: 42888 | 5331 | 5056
+R32: 42891 | 8143 | 8801
+R33: 42892 | 8650 | 8712
+R34: 42893 | 10248 | 10249
+R35: 42894 | 7377 | 7579
+R36: 42895 | 4110 | 4472
+R37: 42898 | 8192 | 7549
+R38: 42899 | 9570 | 9054
+R39: 42900 | 11365 | 10420
+R40: 42901 | 7404 | 6606
+R41: 42902 | 4412 | 5203
+R42: 42905 | 8712 | 7979
+R43: 42906 | 9054 | 7962
+R44: 42907 | 11692 | 10735
+R45: 42908 | 8296 | 7988
+R46: 42909 | 5568 | 5025
+R47: 42912 | 6932 | 7354
+R48: 42913 | 8196 | 8195
+R49: 42914 | 9687 | 10679
+R50: 42915 | 8274 | 7815
+R51: 42916 | 5516 | 5013
+R52: 42919 | 7739 | 8403
+R53: 42920 | 9078 | 8547
+R54: 42921 | 11354 | 9333
+R55: 42922 | 7945 | 7441
+R56: 42923 | 4115 | 4758
+R57: 42926 | 8479 | 7467
+R58: 42927 | 9081 | 8381
+R59: 42928 | 10921 | 9906
+R60: 42929 | 8209 | 8013
+R61: 42930 | 4338 | 4706
+R62: 42933 | 8044 | 8003
+R63: 42934 | 8699 | 8221
+R64: 42935 | 11361 | 11004
+R65: 42936 | 9211 | 7715
+R66: 42937 | 5568 | 4420
+R67: 42940 | 8450 | 7469
+R68: 42941 | 8517 | 9228
+R69: 42942 | 10698 | 10739
+R70: 42943 | 7956 | 7443
+R71: 42944 | 5437 | 5399
+R72: 42947 | 7690 | 8115
+R74: Average | 8089.9069767441861 | 7776.9069767441861
+R75: Note that Vancouver sales are lower, so we may be able to reject H0
+R77: t-Test: Paired Two Sample for Means
+R79: Toronto | Vancouver
+R80: Mean | 8089.9069767441861 | 7776.9069767441861
+R81: Variance | 4070782.5149501618 | 3383437.3244739715
+R82: Observations | 43 | 43
+R83: Pearson Correlation | 0.94338455440481883
+R84: Hypothesized Mean Difference | 0
+R85: df | 42
+R86: t Stat | 3.0529335739916252
+R87: P(T<=t) one-tail | 1.9609182640921972E-3
+R88: t Critical one-tail | 1.6819523574675355
+R89: P(T<=t) two-tail | 3.9218365281843944E-3
+R90: t Critical two-tail | 2.0180817028184461
+R92: One tailed-p is ~0.002 so a pretty strong rejection.
+R94: d.
+R95: The tests provides a pretty clear signal that sales are lower in Vancouver than in Toronto.  If she is convinced
+R96: of the logic of her choice, she should replace the manager, though she may want to reconsider her logic since we do not
+R97: know that the choice of manager is the actual cause of the difference in sales.
+
+===== SHEET: Q7 =====
+R2: 1.       Developing and applying Models:  (Note: Regression question is out of scope for Jan 2018 Cohort but you could still do part A as it is just a mathematical equation.)
+R3: a.       A linear regression model to explain sales is given by the following equation:
+R7: i.      What sorts of numbers might you expect for B0, B1 and B2?  Explain your reasoning and what this would tell you about sales.
+R8: ii.      Illustrate how this function might look as a diagram, be sure to indicate the beta values you chose on your chart.
+R9: iii.      Calculate a function to describe the impact of a change in Ad_Budget on Sales.
+R11: b.       When I buy lunch at school, the amount I spend is a random variable with a mean of 10 and a sigma of 2.  For next month, I will buy lunch 20 times, how much do I need to budget to be 95% confident of remaining within my budget?  What assumptions did you need to make to answer this question, if any?
+R13: c.       Suppose I can put $10,000 into an RSP, where it will grow continuously at 5% for 20 years at which point I will pay 50% tax on the total amount, or I can put $5,000 into a TFSA for the same time at the same return but pay no tax on the money in 20 years’ time.  It seems obvious that these should be the same amount.  Are they?
+R16: a.
+R17: B0 reflets the amount sold with no advertising budget, this should be a positive number.
+R18: B1 reflects the 'linear' component of how sales increase with advertising budget, it should be a positive number.
+R19: B2 reflects the decreasing returns to scale in advertising, it should be a negative number that is small in value relative
+R20: to B1.  This way the impact of increasing advertising budget will start out as postitive and as advertising budget grows,
+R21: the increase in sales associated with an increase in ad_budget will be smaller and smaller.  Eventually the impact on
+R22: sales will be negative, which suggests a breakdown of the model if pushed into that area.
+R24: graph in wolram to get look if description above doesn't convey shape.
+R27: dSales/dAd_Budget | = B1+B2Ad_Budget
+R30: b.
+R31: Determine average spend required by treating as a normal with mean 10 and sigma 2/(10^.5)
+R33: You need to assume the amount spent on lunch each day is independent of the other days.  This may not be true
+R34: if, for example, you go to cheap resturants one day to save up money to go to a more expensive one on another.
+R37: c.
+R38: Use formula Pe^rt scaled by tax rate.
+R40: RSP | 13591.409142295226
+R41: TFSA | 13591.409142295226
+R43: They are the same amount for this specification.
+
+===== SHEET: Q8 =====
+R3: 1.       Don’t hold your breath:
+R4: a.       Apparently the average person can, with training, hold their breath for 2 minutes.  (Frankly, I don’t believe it, but that’s what was claimed on a random page I found on Google!)  Suppose that mean is 120 seconds and that standard deviation of this is 20 seconds.  If we had 100 people attempt to hold their breath as long as they could, how likely is it that the average of that sample would be longer than 140 seconds?
+R6: b.       Consider the data provided in the exam data file – what do you think of the claim made that people can hold their breath for two minutes: construct an appropriate null and alternative hypothesis and perform the relevant test?  Explain any decisions you had to make and the result of your analysis.
+R8: c.       What is the probability that I can hold my breath for exactly 120 seconds?
+R13: a.
+R14: This produces a sample mean from a distribution that is asymptotically normal with mean 120, sigma 20 / (100)^.5 = 2
+R16: Find probability that this normal produces a value greater than 140 seconds, without checking you may know that this
+R17: is 'vanishingly small' because you are looking for values 10 standard deviations above the mean.  You, however, should
+R18: confirm this with a z-score and standard normal lookup.
+R20: b.
+R21: The business context is vague here, my incredulty might indicate that I don't believe people can hold their breath that long
+R22: assuming I wish to demonstrate that to 'prove my point'…
+R23: H1: -> People can't hold their breaths that long, so this is not ture.
+R24: -> Mu_Breath < 120 seconds
+R25: H0: Mu_Breath >= 120 seconds
+R27: I should also pick an alpha -- since this seems to be a minor issue, I might be willing to make a type-1 error, and could pick
+R28: alpha =5%
+R30: Person | Time (S)
+R31: 1 | 142
+R32: 2 | 100
+R33: 3 | 101
+R34: 4 | 135
+R35: 5 | 86
+R36: 6 | 121
+R37: 7 | 106
+R38: 8 | 96
+R39: 9 | 94
+R40: 10 | 125
+R41: 11 | 141
+R42: 12 | 114
+R43: 13 | 111
+R44: 14 | 125
+R45: 15 | 133
+R46: 16 | 135
+R47: 17 | 134
+R48: 18 | 102
+R49: 19 | 111
+R50: 20 | 118
+R51: 21 | 101
+R52: 22 | 130
+R53: 23 | 128
+R54: 24 | 138
+R55: 25 | 126
+R56: 26 | 107
+R57: 27 | 123
+R58: 28 | 130
+R59: 29 | 129
+R60: 30 | 107
+R61: 31 | 122
+R62: 32 | 90
+R63: 33 | 126
+R64: 34 | 114
+R65: 35 | 100
+R66: 36 | 130
+R67: 37 | 111
+R68: 38 | 112
+R69: 39 | 92
+R70: 40 | 95
+R71: 41 | 108
+R72: 42 | 101
+R73: 43 | 111
+R74: 44 | 131
+R75: 45 | 126
+R76: 46 | 100
+R77: 47 | 133
+R78: 48 | 131
+R79: 49 | 119
+R80: 50 | 115
+R81: 51 | 112
+R82: 52 | 93
+R83: 53 | 115
+R84: 54 | 125
+R85: 55 | 122
+R86: 56 | 112
+R87: 57 | 153
+R88: 58 | 109
+R89: 59 | 108
+R90: 60 | 122
+R91: 61 | 107
+R92: 62 | 117
+R93: 63 | 109
+R94: 64 | 128
+R95: 65 | 133
+R96: 66 | 127
+R97: 67 | 125
+R98: 68 | 123
+R99: 69 | 125
+R100: 70 | 121
+R101: 71 | 144
+R102: 72 | 98
+R103: 73 | 100
+R104: 74 | 119
+R105: 75 | 110
+R106: 76 | 133
+R107: 77 | 113
+R108: 78 | 135
+R109: 79 | 110
+R110: 80 | 92
+R111: 81 | 103
+R112: 82 | 134
+R113: 83 | 130
+R114: 84 | 107
+R115: 85 | 116
+R116: 86 | 119
+R117: 87 | 127
+R118: 88 | 93
+R119: 89 | 102
+R120: 90 | 119
+R121: 91 | 127
+R122: 92 | 153
+R123: 93 | 136
+R124: 94 | 108
+R125: 95 | 121
+R126: 96 | 117
+R127: 97 | 117
+R128: 98 | 102
+R129: 99 | 112
+R130: 100 | 90
+R132: Mean | x-bar = | 116.89
+R133: Std Dev | S x | 14.610702456166392
+R134: n = | 100
+R135: S x-bar | 1.4610702456166391
+R137: t | -2.1285766439569342
+R139: p-value | 1.7885554093064901E-2
+R141: So we can reject with p-value 0.017886
+R145: c.
+R146: The probability of any particular outcome is 0.  (Don't think too much about this…)
+
+===== SHEET: Q9 =====
+R3: 1.       While working as a consultant, I found some market research that proved that in Houston, Tx., 30% of the non-commercial vehicles on the road were trucks.  There was no information on the share of trucks in Dallas, but I lived in Dallas for about a year and a half, and driving to work each day, I saw what seemed to be a much higher percentage of trucks as a share of non-commercial vehicles.  In fact, I suspect that trucks represent at least say 40% of non-commercial vehicles in Dallas.  If this is the case, I should quit my job and open a dealership that focuses on selling trucks.
+R4: a.       Construct the null and alternative hypothesis associated with my problem.
+R5: b.       Explain how I might best think about choosing an alpha for this test.  Be sure you indicate what it means.  Are there other considerations I should be thinking about?  If so, what ones?
+R6: c.       Suppose that what I’d really like is a fairly accurate estimate of the actual percentage of trucks as a share of non-commercial vehicles – say within 2%.  How many vehicles, at a minimum, should I look at?
+R7: d.       Suppose that I take your advice and review the next ‘N’ trucks.  I am careful in the way I do this and I randomly pick non-commercial vehicles out as I am driving to work.  I then record whether that vehicle was a truck or a car.  At the end of a year, I have all the information.  Explain, in principle, how this can be used to construct a confidence interval on the percentage of trucks.
+R8: e.       I feel like I am missing something in the way this is being done, it may be that I am just paranoid… What do you think?
+R12: a.
+R13: H1: Trucks are more than 40% of the non-commercial vehicles so I should quit my job.
+R14: -> P_trucks > 0.4
+R15: H0: P_Trucks <= 0.4
+R17: b.
+R18: Alpha should be associated with the cost of failure.  I would be giving up my job if I reject the null, so if I make a
+R19: mistake in doing this, the costs could be very high. I'd better make damn sure that I don't reject if the null is true
+R20: so I should set alpha to be very small -- say 0.001.  (Note: in part this is because I am a risk averse person another
+R21: person  might equally pick a different alpha -- with different justification.)
+R23: c.
+R24: We can use the formula for determining sample size on the basis of error bound.  The error bound in this case is
+R25: E = 0.02, to be fairly accurate, we need a high confidence level, which equates to a small alpha.  We might be tempted
+R26: to choose a different alpha from above, though that is probably not justified.
+R28: d.
+R29: See notes on confidence intervals for proportions.
+R31: e.
+R32: One obvious thing is sample construction -- the routes I drive may have more trucks, particularly if this is based
+R33: on the route I take driving to work.
+
+===== SHEET: Q10 =====
+R2: 1.       For each of the problems below, calculate the relevant probabilities and draw an approximate picture of the distributions involved and note any assumptions you have to make.
+R4: The Starbucks by my hotel is an awesome thing.  Granted, not a lot of people like to watch a coffee shop, but I am always impressed by their efficiency, so I have taken some very detailed notes on their operations – I am kind of strange that way.  In any case, I noticed that, during peak hours, about four people arrive per minute.  Of these customers basically one in ten order the double-smoked bacon breakfast sandwich.
+R6: a.       So yesterday I really wanted to have a double-smoked bacon breakfast sandwich so I called the coffee shop to see if they had any in stock, they said they had exactly 20.  If I rush, I can get there in 10 minutes.  What is the probability that I will get my sandwich?
+R8: b.       So I finally get to Starbucks and can see that they have 2 of the sandwiches left, but wouldn’t you know it, there is a line up 20 people long in front of me.  What is the probability that I get my sandwich?
+R10: a.       So as it happens the barista finally hands me my sandwich and coffee (extra-large, naturally) and I was about to pay.  I reached into my pocket to use my Starbucks card when I realized that I had no idea how much money was on it.  My wife loads it up with $25 whenever the balance on it reaches 0.  I have absolutely no idea when she last did that.   Aside from my Starbucks card, I have $2.25 in quarters and a subway token (which apparently Starbucks does not accept as legal tender!) The bill was for $8.22, what is the approximate probability that I can pay?
+R13: a.
+R14: Think poisson distribution:
+R15: Rate of sales is about 4 people per min of which 10% order a sandwhich, so lambda = .4 per sandwiches sold per min or .4*10 = 4 per 10 min.
+R17: To get a sandwich, in those 10 min, fewer than 20 have to be sold.  (Note, we are implicitly assuming I get to the front of the line in 10 min, but recognizing that you are making this assumption, it would be easy to fix.)
+R18: so I am looking for P(X<= 19)
+R19: 0.99999998979947791
+R21: b.
+R22: Think binomial
+R23: n = 20
+R24: p = 0.1
+R26: I need to have fewer than 2 sold so I am interested in P(X<=1)
+R28: 0.39174699812516767
+R30: c.
+R31: You have no idea how much money you have but it is between 0 and $25 - use a uniform distribution.
+R33: The event of interest is that you have enough to pay = bill - cash = 8.22 - 2.25 or more money.
+R35: 5.9700000000000006
+R36: Must have X >= 5.97
+R38: 0.7612000000000001
+
+===== SHEET: Q11 =====
+R2: 1.       Collection of questions:
+R4: a.       My wife has been admiring a particular pair of boots on Amazon.ca.  She tells me that the price changes every day but that she thinks it is normally distributed with a mean of 300 and a standard deviation of 30.  Apparently the price this morning was $240.  She asked me to calculate the probability that she will see a lower price in the next five days.  What should I tell her?
+R6: b.       The cost of production for a batch of size q for a particular product is given by:
+R7: . What is the total cost of a batch that minimizes production costs?
+R9: c.       There are two investment options in front of me.  Option A grows at a constant rate of 3% per year for ten years.  Option B will either grow at 1.5% per year for ten years or 4.5% per year for ten years – each option is equally likely.  Which is a better investment and by how much?
+R11: d.       I have to spend essentially all of my Teaching Assistant (TA) budget of $1000 this year or I may not get it for next year.  I have two types of TAs – undergraduate students who get paid $20/hr, and graduate students who get paid $35.  I need to have 35 hours of support to handle all the activities. All of my TAs are awesome people or we would not be working together, so I do not need to worry about quality.
+R13: i.      Set up a matrix algebra representation of this problem. (Be sure to define variables so we know what the equations mean.)
+R14: ii.      Solve the system of equations anyway you like (i.e. you do not need to use matrix algebra if you do not want to.)  Approximately how much time of each type of TA should I hire?  Can I even solve this problem?
+R17: a.
+R18: Use a normal distribution with mean 300, std 30 and calculate the probability of a price lower than 240.
+R19: Start with z-score
+R20: z | -2
+R21: P(Z<-2) | 2.2750131948179191E-2
+R22: so a probaility of about 0.02275 each day.
+R24: Now you have a binomial with N = 5, p=0.02275
+R25: event = x>0
+R26: 1 - p(x=0)
+R27: 0.10869138893026586
+R30: b
+R31: Calculate the average cost function by dividing through by q, take its derivative, set = 0, solve equation and check the two points.
+R33: Confirm your answers with WolframAlpha
+R35: c.
+R36: Note: it doesn't matter what you use as initial investment, so use one $.
+R37: Calculate the certain investement and each of the risky ones using Pe^rt
+R38: Report the value of the certain one and the expected value of the other
+R40: Certain | 1.3498588075760032
+R42: High | Low | Expected
+R43: Random | 1.1618342427282831 | 1.5683121854901687 | 1.3650732141092259
+R45: The random investment has a higher expected value but greater risk, so we really cannot say which one is 'better'.
+R46: Certainly the random produces higher expected results.
+R48: Note: there are a few ways you could characterize the value.
+R51: d.
+R52: Set up two equations then place into matrix algebra
+R54: Variables | A, B = number of undergrad and grad TA hours
+R56: Constraints
+R57: Budget | 20A + 35B = 1000
+R58: Time | A+B = 35
+R60: Matrix | 20 | 35 | 1000
+R61: 1 | 1 | 35
+R63: Solve to get:
+R64: A | B
+R65: 15 | 20
+R67: Confirm
+R68: Budget | 1000
+R69: Hours | 35

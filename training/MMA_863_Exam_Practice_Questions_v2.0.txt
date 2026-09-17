@@ -1,0 +1,24 @@
+Please answer three of the following questions.  All questions have equal weight.
+Photo Radar: The government of Ontario decided it would try to raise money by installing photo radar cameras on the 401 highway across the top of Toronto.  The camera would be set to record the speed of those travelling more than 135 KM / h and send them a ticket for $200.  It would only run the program between the hours of 6 and 7 PM, during which time it would use radar on exactly 2000 of which about 1% would be ticketed.  
+What is the probability that more than 25 cars get ticketed?
+What is the expected revenue to the government, assuming all tickets get paid?
+If they extended the program until 9 PM, how much revenue would you anticipate the government would make, again, assuming all tickets get paid?
+What assumptions did you have to make to solve the problem?  How realistic are these assumptions?  What in the ‘real world’ could cause these assumptions to be faulty and how could you address this in a real consulting engagement?
+Ice Cream: The data file ‘ice cream’ contains data for sales of chocolate and vanilla ice cream in Kingston.  I have always thought that vanilla sells about the same as chocolate, but if they do not sell the same, I might need to change my ordering policy.
+State the appropriate null and alternative hypothesis for this problem.
+Use the data to test the hypothesis assuming the data are independent.  Report the p-value and interpreter the results.  Did you have to make any assumptions here?
+Use the data to test the hypothesis assuming the data are in matched pairs by day.  Report the p-value and interpreter the results.  Did you have to make any assumptions here?
+Explain in language a manager is likely to understand:
+When a paired t-test is appropriate.
+Why a paired t-test is a more powerful test when it is appropriate.
+Electric Cars: I am thinking about buying an electric car.   From what I have read, the big risk with electric cars appears to be how far one can go on a single battery charge.  Apparently, this depends on characteristics such as weather, amount of traffic, speed of travel, etc.  So, I am concerned that the distance I can travel on a single charge may not be far enough.  I would be comfortable if the average travel distance was greater than 280 km.  I found a sample of 49 unrelated trips for the type of car I propose to buy.  The data is presented on the tab “electric cars”.
+Construct the null and alternative hypothesis associated with my problem.
+Explain how I might best think about choosing an alpha for this test.  Be sure you indicate what it means.
+Perform the test based on the available data.  Calculate and report the p-value for the test and interpret the results using alpha = 5%.  What can you conclude?
+Irrespective of what you found, assuming this test yielded a very sound rejection, what would that tell me about the probability that I can expect to travel more than 280 km on any given trip?
+Deck Stain: (This one really happened!) I wanted to stain my deck the other day.  Apparently one should only do this if you are confident that it will not rain for 24 hours after applying the stain.  The weather forecast said there would be a 0% chance of precipitation for each of the first 20 hours and a 20% chance for each hour for the final four hours in that 24 hour period.
+The weather forecast is leaving out some important information regarding the events “rain in hour 21”, “rain in hour 22”, etc.  Specifically, it does not say whether the events are mutually exclusive, have independent probabilities or have some other form of conditional probability.  Explain in language a manager would understand what it would mean if:
+Raining in each of the last four hours were mutually exclusive events.
+Raining in each of the last four hours were independent events.
+Raining in each of the last four hours were neither mutually exclusive nor independent events.
+I decided to go ahead and stain the deck.  Assume that raining in each of the last four hours were independent events, what is the probability that my newly-stained deck will get rained on?

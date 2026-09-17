@@ -1,0 +1,25 @@
+Four French-speaking men from Quebec were visiting a fishing camp just outside of Nome, Alaska.
+They had scheduled a three-hour fishing tour for each of the five days they were planning to be there. The fishing tour operator told them that fishing is a random process but that typical person fishing catches about 2 fish per hour. The good news, she said, is that the fish are normally quite large, with average fish being 25 lbs. with a standard deviation of 6 lbs. 
+Make and describe any assumptions you need to make to solve each problem.  These assumptions must be consistent with the problem as described.  Provide details in your answer (e.g. parameters, number lines, pictures, functions) as appropriate to support your work.
+What is the probability that they would catch more than 130 fish during their trip?
+What is the probability that they between the four of them, they will catch in total 20 or more fish on each of the five days?
+What is the probability that the first 36 fish they catch will, in total, weigh more than 950 lbs.?
+Some random problems.  Note any required assumptions with your answers. Provide details in your answer (e.g. parameters, number lines, pictures, functions) as appropriate to support your work.
+Which is more likely: rolling 6 standard dice and getting either a 5 or 6 on at least 3 of them; or rolling 5 standard dice and getting a 4, 5 or 6 on at least 4 of them?
+During a thunderstorm, you see a lightning strike about once every 5 minutes.  During a 20 min storm, what is the probability of their being between 5 and 7 strikes (inclusive)?
+How many words would you have to pick, at random, from a dictionary, to know the proportion of words with the letter R in them within 1% with 95% confidence?
+I need to have $100,000 in 5 years’ time.  I am certain I can achieve 3% continuous growth if I invest in XYZ today.  How much do I have to invest? 
+I offer a home inspection service for prospective home buyers.  I do not actually perform the home inspections myself, but rather pay one of several retired inspectors I know $500 per inspection to do them – they seem pretty happy with the relationship.  
+Clients typically shop around for inspection services and there are several local inspection firms. Historically I have quoted $700 for an inspection and have had clients accept that proposal 30% of the time.  Recently I have suspected that I should raise my prices by $100, so for the past 30 jobs, I have proposed $800 and have sold the jobs 8 jobs.
+Using this information, what is the 95% confidence interval for the proportion of jobs I will get at the new price?
+Suppose I really want to consider the option of increasing the price. Using the method I described in class, develop the test appropriate to this problem. You do not need to actually conduct the test, just explain to me what I should do, and being sure to cover all the important decisions involved in constructing the test.
+What would power mean in the context of this test?
+On the tab, Temperature, you will find data on daily minimum, maximum and range for the Toronto City Centre and Toronto – North York.  For each test you perform, be sure your results are saved and uploaded for academic integrity purposes.
+Perform the most powerful test of the null hypothesis that the two regions of Toronto have the same range of temperature.  Report the p-value for the test and any assumptions you made. 
+I have been learning a lot about bees lately.  I suspect that roof top bee hives would produce more honey if April had higher daytime maximum temperatures (Apparently bees become active in April, if it is warm enough, and that helps them get established for the summer.)  
+I am considering moving my collection of rooftop bee hives from the Toronto City Centre to North York.  Using the method I described in class, develop and conduct the test appropriate to this problem in light of my comments above.  Be sure to describe and justify the key elements and assumptions you made, if any, and report the p-value.   
+Explain what a type 2 error would be in the test from part bee.
+Your manager doesn’t know much about analytics.  That is too bad, but don’t worry, you’ll have his job soon enough.  In the meantime he has made the following comments.  If his suggestions / comments are good ones, explain why; if they are bad ones, explain why and what you should do to fix them or do better; if they do not make sense, make sense of them.  Make sure your answer demonstrates that you have a sophisticated understanding of the issues involved. 
+“The type 1 error is the probability that you will reject null and shouldn’t have.”
+“If you have a common source of variation in two data sets, you must use matched pairs or your results are going to be wrong.”
+“When picking a sample size, if you need to be within 2.5% of the true proportion, a sample of just over 1500 is a good choice.  Well, at least that’s what someone told me.”

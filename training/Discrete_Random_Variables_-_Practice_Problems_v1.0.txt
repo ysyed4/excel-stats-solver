@@ -1,0 +1,69 @@
+===== SHEET: Red Car Blue Car =====
+R3: 1.       One Car two Car, Red Car Blue Car: As I was sitting at the local coffee shop, writing this exam, I noticed that a red car drives by about once every 2 minutes.  I also figured that, based on my count, about 30 % of cars are blue.  Which of the following is more probable:
+R4: a.       If I watch for 20 minutes I will see more than 9 red cars; or
+R5: b.       of the next 15 cars that I see five or more will be blue?
+R10: a.       If I watch for 20 minutes I will see more than 9 red cars; or
+R12: This is a Poisson distribution with the lambda = 1 car per two minutes => 10 cars per 20 minutes.
+R14: Event = More than 5 cars, draw a number line with 0, 1, 2, 3, 4, 5, 6 … infinity, circle range from 10 to infinity and note that this probability is given by 1- P(X<=9)
+R16: =1-POISSON.DIST(9,10,TRUE)
+R17: 0.54207028552814773
+R21: b.       of the next 15 cars that I see five or more will be blue?
+R23: This is a binomial with n = 15, p = 0.30 and the event of interest being X>=5.  Draw a number line with 0, 1, … 15 and circle 5, 6, …15 as the event of interst.  Note that the probability of this event is given by 1 - P(X<=4)
+R25: =1 - BINOM.DIST(4,15,0.3,TRUE)
+R26: 0.48450894077315687
+
+===== SHEET: Office Space =====
+R3: a.       My office uses a ‘hoteling’ model for having desk space available for its employees.  This means that each of the 20 desks are allocated to potentially different individuals each day depending on who shows up in the office.  Where employees work (home, office, or on the road) is up to them and is somewhat random.  We have 50 employees but only 30% want to work in the office on any given day, except Friday when 35% want to work in the office, again the actual number of who want to work in the office is random.  Do we have a problem?
+R5: Note that this question is more abstract -- it asks "Do we have a problem?"  so you have to determine what it means to "have a problem".  If you take this to mean on any particular day, you can find the probabilities for any given day as follows:
+R7: Binomial
+R8: Monday - Thursday: n = 50, p = 0.30, event = problem = x > 20
+R9: P(X>20) = 1 - P(X<=20) = 1-BINOM.DIST(20,50,0.3,TRUE)
+R10: 4.7763835420530087E-2
+R11: So Monday to Thursday, there is about a 4.8% chance of having a problem on any given day.
+R13: Friday: n = 50, p = 0.35, event = problem = x > 20
+R14: P(X>20) = 1 - P(X<=20) = 1-BINOM.DIST(20,50,0.35,TRUE)
+R15: 0.18605487887773209
+R17: On Friday, there is about an 18.6 % of having a problem. (Eqivallently, there is a 0.81394… prob of NOT having a problem on Friday.)
+R19: Note: this goes beyond my expectations for this class, but if you thought about it a bit more, you might recognize that having a problem could apply to a week.  You could 'nest' the solutions above into other probability models to determine that probability.  For example, the probability of a problem on any day from Monday to Thursday is well modelled as a binomial with n = 4, p = 0.047763835 and the event X > 0.  To calcuate the probability of a problem in a given week, you could use: P(No problem in a week) = P(No problem M-Th AND No problem Friday) = <Given Independence> P(No Problem M-TH) * P(No Problem F)
+R21: Probability of no problem M-Th  =BINOM.DIST(0,4,B11,TRUE)
+R22: 0.82220229628051789
+R24: Probability of no problem in given week is about 67%.
+R25: 0.66922754763305292
+R27: In principle, this could be extended to a year…
+R29: b.      My office uses a ‘hoteling’ model for having desk space available for its employees.  This means that each of the 20 desks are allocated to potentially different individuals each day depending on who shows up in the office.  Where employees work (home, office, or on the road) is up to them and is somewhat random.  On average, 15 employees want to work in the office on any given day, except Friday when 17 on average would want to work in the office, again the actual number of who want to work in the office is random.  Do we have a problem?
+R31: Note: the same observations about what it means to have a problem apply here too.
+R34: Poisson
+R35: Monday - Thursday: lambda = <15> <employees> per <day>
+R36: P(X>20) = 1 - P(X<=20) =1 - POISSON.DIST(20,15,TRUE)
+R37: 8.2970910031460177E-2
+R38: Friday: lambda = <17> <employees> per <day>
+R39: P(X>20) = 1 - P(X<=20) =1 - POISSON.DIST(20,17,TRUE)
+R40: 0.19451945373319024
+
+===== SHEET: Winter Wonderland =====
+R3: Winter Wonderland: The driveway at my cottage is literally 1 km long.  It is quite a peaceful drive in the summer but in the winter it can be a treacherous frozen nightmare.  Last week, after the big ice storm, I drove up to the lake and realized I couldn’t drive down the driveway because it was too icy for the car.  It was even dangerous for walking and I anticipated a 5% chance I’d slip and fall during the first 100 m alone.   Nevertheless, it was important to go in because I needed to know how much propane we had left for heating the place.  (You may be interested in knowing that the daily consumption of propane is distributed with a mean of 6.5 L with a standard deviation of 2 L.)  Clearly I was going to have to walk all the way in and then all the way back out later that afternoon – I was not happy!
+R5: a.       SOLVE THIS TWO DISTINCT WAYS AND COMPARE ANSWERS: So I started walking in, only to realize, half way to the cottage, that I’d forgotten my keys and had to go back to the car to get them.  Given that I ‘got lucky’ and had not fallen by the time I realized I had forgotten my keys, what is the probability I would finish the day without slipping?
+R10: b.       When I got there, I determined that there was 200 L of propane left in the tanks.  Since it was so icy, there is no way that a truck could deliver more until the ice melted, I suspect it will be 30 days until that happened.  How worried should I be?
+R15: a.       SOLVE THIS TWO DISTINCT WAYS AND COMPARE ANSWERS: So I started walking in, only to realize, half way to the cottage, that I’d forgotten my keys and had to go back to the car to get them.  Given that I ‘got lucky’ and had not fallen by the time I realized I had forgotten my keys, what is the probability I would finish the day without slipping?
+R17: Let's examine the 'reality' part of this first.  Then we can think about how to push it into a model.
+R19: When I realize I forgot my keys, I have to walk 1/2 a km back to the car, then 1 full km from the car to the house and eventually 1 km from the house back to the car to go home.  That means I have to walk 2.5 km or 2500 m.
+R21: The obvious framing seems to be a Poisson, so let's start there.  I need lambda, which as always will be <#> of <units> per <interval>.  In this case Lambda = <0.05> <falls> per <100 m walked>.  Since I have to walk 2500 m, I should rescale this by a factor of 25 to get: Lambda = 1.25 falls per 2500 M walked.
+R23: Now I can think about the event, which is 'I finish the day without slipping', which translates to the number of slips = 0 which given the lambda is:
+R25: =POISSON.DIST(0,1.25,TRUE)
+R26: 0.28650479686019009
+R28: Let's repeat the question with a binomial distribution.  Here we are going to have to 'push' things a bit.  With a bit of imagination, we can think of each 100 m as being an event in which we could fall or not with probability 0.05.  This would give us an n = 25, p = 0.05.  NOTE: This is OBVIOUSLY a violation of several real-world aspects, such as having no upper limit on the number of times you can fall, but if you think about it, the probability of falling more than 25 times is very small (check that for yourself!) so let's give the model a try.
+R30: Event, as before, is not falling, which translates into x = 0 so:
+R31: P(X=0) = BINOM.DIST(0,  25, 0.05, TRUE)
+R32: 0.27738957312183404
+R34: So either way I model it, it looks like the chance of my falling at least once is similar.
+R38: b.       When I got there, I determined that there was 200 L of propane left in the tanks.  Since it was so icy, there is no way that a truck could deliver more until the ice melted, I suspect it will be 30 days until that happened.  How worried should I be?
+R40: Let's think about this problem in its multiple parts: From the fuel supply side, there are 200L that, apparently, have to last 30 days.  That means on average I must consume less than 200 / 30 = 6.67 L of fuel per day or I will run out.
+R42: From the demand side, I consume 6.5 L per day with a standard deviation of 2L.  That means the average fuel consumption per day over 30 days is X_bar ~ Asymptotically N(6.5, 2/30^.5 = 0.365148...)
+R44: Put these together with a picture.  Draw a normal distribution with mean 6.5, std dev 0.365148… and a line at 6.67 L, the area to the right of that line would be places where the average consumption was too high and we ran out of fuel, so we need to find that area (= probability).
+R46: In other words, we are looking for the event X_bar > 6.67 given X_bar ~ N(6.5, 0.35614…)
+R48: Use the Z_score: Z = (6.67 - 6.5) / 0.365148
+R49: 0.46556464775926459
+R51: P(Z>z) = P(Z>0.4655…) = 1 - P(Z<0.4655…)
+R52: 0.32076380820448225
+R54: So there is about a 32% chance I'll run out of fuel if it takes 30 days for the truck to get there.
+R55: (Note: we have conveneintly ignored WHEN the truck get there on the 30th day!)

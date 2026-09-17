@@ -209,6 +209,69 @@ function solveBinomial(values: Record<string, unknown>): SolveResult {
     }
   }
 
+  if (query === 'moreThan') {
+    const cum = BINOM_DIST(x, n, p, true)
+    const more = 1 - cum
+    const excelLeft = formatExcelCall('BINOM.DIST', [x, n, p, true])
+    return {
+      excelCalls: [`=1 - ${excelLeft.slice(1)}`],
+      lines: [
+        { label: `P(X ≤ ${x})`, value: fmt(cum) },
+        { label: `P(X > ${x})`, value: fmt(more), emphasis: true },
+      ],
+      note: 'Translate P(X > k) into 1 − BINOM.DIST(k, n, p, TRUE).',
+      walkthrough: {
+        title: 'Binomial · more-than probability',
+        distribution: `X ~ Binomial(n = ${n}, p = ${p})`,
+        find: `P(X > ${x})`,
+        diagram: {
+          kind: 'number-line',
+          min: 0,
+          max: n,
+          marks: [
+            { value: 0, label: '0' },
+            { value: x, label: String(x) },
+            { value: n, label: String(n) },
+          ],
+          highlightFrom: Math.min(x + 1, n),
+          highlightTo: n,
+          caption: `Shade X ≥ ${x + 1} (i.e. X > ${x})`,
+        },
+        steps: [
+          ...baseSteps,
+          step(
+            3,
+            'Identify what to find',
+            `Find P(X > ${x}) — e.g. overflow / more demand than capacity ${x}.`,
+          ),
+          step(
+            4,
+            'Draw a diagram',
+            `Shade outcomes ${x + 1} through ${n}. Complement is 0 through ${x}.`,
+          ),
+          step(
+            5,
+            'Translate for Excel',
+            `P(X > ${x}) = 1 − P(X ≤ ${x}) = 1 − BINOM.DIST(${x}, ${n}, ${p}, TRUE).`,
+            { excel: [excelLeft, `=1 - ${excelLeft.slice(1)}`] },
+          ),
+          step(
+            6,
+            'Solve and check',
+            `P(X ≤ ${x}) ≈ ${fmt(cum)}, so P(X > ${x}) = ${fmt(more)}.`,
+            {
+              values: [
+                { label: `P(X ≤ ${x})`, value: fmt(cum) },
+                { label: `P(X > ${x})`, value: fmt(more) },
+              ],
+            },
+          ),
+        ],
+        explanation: `MMA solutions write this as 1 − BINOM.DIST(${x}, n, p, TRUE).`,
+      },
+    }
+  }
+
   // atLeast: P(X ≥ x) = 1 − P(X ≤ x−1)
   const cutoff = x - 1
   const left = cutoff < 0 ? 0 : BINOM_DIST(cutoff, n, p, true)
