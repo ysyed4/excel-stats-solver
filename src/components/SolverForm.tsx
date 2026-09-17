@@ -67,7 +67,7 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
               onChange={(x) => onChange('lambda', x)}
             />
           </Field>
-          <Field label="Interval multiplier" hint="hours / periods">
+          <Field label="Interval multiplier" hint="days / periods that scale λ">
             <NumberInput
               value={v('hours', '1')}
               onChange={(x) => onChange('hours', x)}

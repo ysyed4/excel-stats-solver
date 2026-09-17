@@ -69,6 +69,19 @@ export const EXAMPLES: ExampleProblem[] = [
     },
   },
   {
+    id: 'kodiak-halibut',
+    solverId: 'poisson',
+    title: 'Kodiak halibut trip',
+    prompt:
+      '3 anglers × 4 hrs/day × 1.5 fish/hr × 4 days. P(more than 90 fish during the trip)?',
+    values: {
+      lambda: 18,
+      hours: 4,
+      query: 'moreThan',
+      x: 90,
+    },
+  },
+  {
     id: 'gas-uniform',
     solverId: 'uniform',
     title: 'Gasoline sales',

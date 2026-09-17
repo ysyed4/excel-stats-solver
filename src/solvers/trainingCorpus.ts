@@ -228,10 +228,29 @@ export const TRAINING_CASES: TrainingCase[] = [
     prompt:
       'Typical person catches about 2 fish/hour. Four men, 3-hour tours × 5 days. P(more than 130 fish)?',
     solverId: 'poisson',
-    values: { lambda: 120, hours: 1, query: 'moreThan', x: 130 },
+    values: { lambda: 24, hours: 5, query: 'moreThan', x: 130 },
     rationale:
-      '4×3×5×2 = 120 expected fish → Poisson(120). P(X>130)=1−POISSON.DIST(130,120,TRUE).',
+      'Daily λ = 4×3×2 = 24; trip has 5 days → multiplier 5 so λ_used = 120. P(X>130)=1−POISSON.DIST(130,120,TRUE).',
     source: 'New Practice Problems 2020',
+  },
+  {
+    id: 'kodiak-halibut-trip',
+    title: 'Kodiak halibut · trip total',
+    fingerprints: [
+      'norwegian anglers',
+      'halibut',
+      'kodiak',
+      '1.5 fish per hour',
+      'more than 90 fish',
+      'four days',
+    ],
+    prompt:
+      'Three Norwegian anglers, four-hour charter each of four days, 1.5 fish/hour typical. P(more than 90 fish during their trip)?',
+    solverId: 'poisson',
+    values: { lambda: 18, hours: 4, query: 'moreThan', x: 90 },
+    rationale:
+      'Daily λ = 3 anglers × 4 hrs × 1.5 fish/hr = 18. Trip = 4 days → hours multiplier 4, λ_used = 72. P(X>90)=1−POISSON.DIST(90,72,TRUE).',
+    source: 'User practice / Alaska charter variant',
   },
   {
     id: 'lightning-poisson',

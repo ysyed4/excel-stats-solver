@@ -34,7 +34,7 @@ function resolveProvider(env: Record<string, string>): {
       return {
         provider,
         apiKey: anthropic,
-        model: env.ANTHROPIC_MODEL?.trim() || 'claude-3-5-haiku-20241022',
+        model: env.ANTHROPIC_MODEL?.trim() || 'claude-haiku-4-5-20251001',
       }
     }
     if (provider === 'openai' && openai) {

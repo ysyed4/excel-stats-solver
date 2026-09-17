@@ -317,32 +317,116 @@ function parsePoisson(text: string): Record<string, string | number | boolean> {
     x: 0,
   }
 
-  // "once every 2 minutes" → rate = 1/2 per minute
-  const every = text.match(
-    /(?:once\s+)?every\s+(\d+(?:\.\d+)?)\s*(minutes?|mins?|hours?|hrs?|seconds?|days?)/i,
+  // Fishing / multi-agent rate problems:
+  // λ_day = people × hours_per_day × rate_per_person_per_hour
+  // For a multi-day "trip" question, scale by days via the interval multiplier.
+  const ratePerHour = num(
+    firstMatch(text, [
+      /(\d+(?:\.\d+)?)\s*fish per hour/i,
+      /catches? about\s+(\d+(?:\.\d+)?)\s*(?:fish\s+)?per hour/i,
+      /about\s+(\d+(?:\.\d+)?)\s*fish per hour/i,
+    ]),
   )
-  const window = text.match(
-    /(?:watch for|in|over|during)\s+(\d+(?:\.\d+)?)\s*(minutes?|mins?|hours?|hrs?|seconds?|days?)/i,
+  const people = num(
+    firstMatch(text, [
+      /(\d+)\s+(?:norwegian\s+)?(?:anglers?|men|women|people|fishermen|fishers)/i,
+      /(?:anglers?|men|people)\s*[:(]?\s*(\d+)/i,
+    ]),
   )
+  const peopleWord = /\bthree\s+(?:norwegian\s+)?(?:anglers?|men)/i.test(text)
+    ? 3
+    : /\bfour\s+(?:norwegian\s+)?(?:anglers?|men)/i.test(text)
+      ? 4
+      : /\bfive\s+(?:norwegian\s+)?(?:anglers?|men)/i.test(text)
+        ? 5
+        : /\btwo\s+(?:norwegian\s+)?(?:anglers?|men)/i.test(text)
+          ? 2
+          : undefined
+  const nPeopleResolved = people ?? peopleWord
 
-  if (every && window) {
-    const interval = Number(every[1])
-    const duration = Number(window[1])
-    const unitEvery = every[2].toLowerCase()
-    const unitWindow = window[2].toLowerCase()
-    // Same family of units (minute/min, hour/hr)
-    const sameFamily =
-      (unitEvery.startsWith('min') && unitWindow.startsWith('min')) ||
-      ((unitEvery.startsWith('hour') || unitEvery.startsWith('hr')) &&
-        (unitWindow.startsWith('hour') || unitWindow.startsWith('hr'))) ||
-      (unitEvery.startsWith('sec') && unitWindow.startsWith('sec')) ||
-      (unitEvery.startsWith('day') && unitWindow.startsWith('day'))
+  const hoursPerDay = num(
+    firstMatch(text, [
+      /(\d+(?:\.\d+)?)\s*[- ]?hour(?:s)?\s+(?:fishing\s+)?(?:charter|tour|trip)/i,
+      /(?:charter|tour|trip)\s+for\s+each[^.]{0,60}?(\d+(?:\.\d+)?)\s*[- ]?hour/i,
+      /(\d+(?:\.\d+)?)\s*[- ]?hour(?:s)?\s+fishing/i,
+      /booked a\s+(\d+(?:\.\d+)?)\s*[- ]?hour/i,
+    ]),
+  )
+  const hoursWord = /four-hour|\b4-hour\b/i.test(text)
+    ? 4
+    : /three-hour|\b3-hour\b/i.test(text)
+      ? 3
+      : /two-hour|\b2-hour\b/i.test(text)
+        ? 2
+        : undefined
+  const hrs = hoursPerDay ?? hoursWord
 
-    if (sameFamily && interval > 0) {
-      // λ for the observation window
-      values.lambda = duration / interval
+  const days = num(
+    firstMatch(text, [
+      /(\d+)\s+days?\s+they/i,
+      /each of the\s+(\d+)\s+days/i,
+      /for\s+(?:each of\s+)?(?:the\s+)?(\d+)\s+days/i,
+      /(\d+)\s*[- ]?day\s+(?:trip|visit|charter)/i,
+      /planning to be there[^.]*?(\d+)\s+days/i,
+    ]),
+  )
+  const daysWord = /\bfour days\b|\b4 days\b/i.test(text)
+    ? 4
+    : /\bfive days\b|\b5 days\b/i.test(text)
+      ? 5
+      : /\bthree days\b|\b3 days\b/i.test(text)
+        ? 3
+        : undefined
+  const dayCount = days ?? daysWord
+
+  const tripQuestion =
+    /during their trip|over the (?:whole |entire )?trip|in total.*trip|catch more than\s+\d+\s+fish during/i.test(
+      text,
+    )
+
+  if (ratePerHour !== undefined && (nPeopleResolved !== undefined || hrs !== undefined)) {
+    const nPeople = nPeopleResolved ?? 1
+    const nHours = hrs ?? 1
+    const dailyLambda = nPeople * nHours * ratePerHour
+    values.lambda = dailyLambda
+    // Scale to the question window: full trip → multiply by days
+    if (tripQuestion && dayCount !== undefined && dayCount > 1) {
+      values.hours = dayCount
+    } else if (dayCount !== undefined && dayCount > 1 && /more than\s+\d+\s+fish/i.test(text)) {
+      // "more than N fish" with multi-day setup usually means the whole visit
+      values.hours = dayCount
+    } else {
       values.hours = 1
     }
+  } else if (
+    // "once every 2 minutes" → rate = 1/2 per minute
+    (() => {
+      const every = text.match(
+        /(?:once\s+)?every\s+(\d+(?:\.\d+)?)\s*(minutes?|mins?|hours?|hrs?|seconds?|days?)/i,
+      )
+      const window = text.match(
+        /(?:watch for|in|over|during)\s+(\d+(?:\.\d+)?)\s*(minutes?|mins?|hours?|hrs?|seconds?|days?)/i,
+      )
+      if (!every || !window) return false
+      const interval = Number(every[1])
+      const duration = Number(window[1])
+      const unitEvery = every[2].toLowerCase()
+      const unitWindow = window[2].toLowerCase()
+      const sameFamily =
+        (unitEvery.startsWith('min') && unitWindow.startsWith('min')) ||
+        ((unitEvery.startsWith('hour') || unitEvery.startsWith('hr')) &&
+          (unitWindow.startsWith('hour') || unitWindow.startsWith('hr'))) ||
+        (unitEvery.startsWith('sec') && unitWindow.startsWith('sec')) ||
+        (unitEvery.startsWith('day') && unitWindow.startsWith('day'))
+      if (sameFamily && interval > 0) {
+        values.lambda = duration / interval
+        values.hours = 1
+        return true
+      }
+      return false
+    })()
+  ) {
+    // handled above
   } else {
     const fridayMean = num(
       text.match(/friday[^.]*?(?:average[, ]*|on average[, ]*)(\d+(?:\.\d+)?)/i) ||
@@ -375,7 +459,9 @@ function parsePoisson(text: string): Record<string, string | number | boolean> {
         /watch for\s+(\d+(?:\.\d+)?)/i,
       ]),
     )
-    if (hours !== undefined && !/desks?|employees?/i.test(text)) values.hours = hours
+    if (hours !== undefined && !/desks?|employees?|fish per hour|anglers?/i.test(text)) {
+      values.hours = hours
+    }
   }
 
   const desks = num(firstMatch(text, [/(\d+)\s*desks?/i, /capacity of\s+(\d+)/i]))
@@ -403,8 +489,6 @@ function parsePoisson(text: string): Record<string, string | number | boolean> {
   } else if (/at least\s+(\d+)|(\d+)\s+or more/i.test(text)) {
     values.query = 'moreThan'
     const x = num(firstMatch(text, [/at least\s+(\d+)/i, /(\d+)\s+or more/i]))
-    // P(X ≥ k) ≈ moreThan with x = k-1 when using POISSON moreThan as P(X > x)
-    // Our poisson "moreThan" is P(X > x) = 1 - P(X ≤ x). For P(X ≥ k) use x = k-1.
     if (x !== undefined) values.x = x - 1
   }
 
