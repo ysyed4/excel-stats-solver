@@ -385,6 +385,28 @@ export const TRAINING_CASES: TrainingCase[] = [
     source: 'New Practice Problems 2020',
   },
   {
+    id: 'z-unknown-lower',
+    title: 'Standard normal · unknown lower bound',
+    fingerprints: ['? < z <', 'p(? < z < 1)', '= 0.1'],
+    prompt: 'P(? < Z < 1) = 0.1. Find the missing lower z-value.',
+    solverId: 'standard-normal',
+    values: { query: 'invBetweenLow', zHigh: 1, probability: 0.1 },
+    rationale:
+      'Z ~ N(0,1). Φ(1) − Φ(z*) = 0.1 → z* = NORM.S.INV(NORM.S.DIST(1,TRUE) − 0.1).',
+    source: 'MMA 863 Z-table practice',
+  },
+  {
+    id: 'z-unknown-upper',
+    title: 'Standard normal · unknown upper bound',
+    fingerprints: ['-1 < z < z', 'find z such that', '= 0.5'],
+    prompt: 'Find z such that P(-1 < Z < z) = 0.5.',
+    solverId: 'standard-normal',
+    values: { query: 'invBetweenHigh', zLow: -1, probability: 0.5 },
+    rationale:
+      'Φ(z*) − Φ(−1) = 0.5 → z* = NORM.S.INV(NORM.S.DIST(-1,TRUE) + 0.5).',
+    source: 'MMA 863 Z-table practice',
+  },
+  {
     id: 'calvin-pass',
     title: 'Calvin’s true/false exam',
     fingerprints: ['true-false', 'flip-a-coin', '20-question', '10 or more'],

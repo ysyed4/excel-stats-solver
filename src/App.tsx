@@ -25,7 +25,13 @@ export const DEFAULTS: Record<SolverId, Record<string, string | number | boolean
     exact: 2500,
   },
   normal: { mean: 15, sd: 3, query: 'greater', x: 16, lower: 8, upper: 19 },
-  'standard-normal': { query: 'less', z: 1, zLow: -1, zHigh: 1 },
+  'standard-normal': {
+    query: 'less',
+    z: 1,
+    zLow: -1,
+    zHigh: 1,
+    probability: 0.975,
+  },
   't-dist': { df: 30, query: 'invRight', alpha: 0.1, t: 2.04 },
   'sample-mean': {
     mean: 2000,

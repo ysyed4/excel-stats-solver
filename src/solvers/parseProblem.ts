@@ -120,7 +120,11 @@ function scoreStandardNormal(text: string): number {
   const t = text.toLowerCase()
   let score = 0
   if (/standard normal/.test(t)) score += 8
-  if (/p\s*\(\s*z\b|z\s*~\s*n\s*\(\s*0/.test(t)) score += 6
+  if (/z\s*~\s*n\s*\(\s*0/.test(t) || /norm\.s\.(dist|inv)/.test(t)) score += 8
+  // Any P(…Z…) style lookup, including unknowns like P(? < Z < 1)
+  if (/p\s*\([^)]*\bz\b/.test(t)) score += 7
+  if (/\?\s*<\s*z|z\s*<\s*\?|<\s*z\s*</.test(t)) score += 4
+  if (/find\s+z|critical\s+z|z\s*\*/.test(t)) score += 3
   return score
 }
 
@@ -667,6 +671,64 @@ function parseStandardNormal(text: string): Record<string, string | number | boo
     z: 1,
   }
 
+  const probEq = num(
+    firstMatch(text, [
+      /\)\s*=\s*(\d+(?:\.\d+)?)/,
+      /=\s*(\d+(?:\.\d+)?)\s*$/,
+      /probability\s*(?:of|is|=)\s*(\d+(?:\.\d+)?)/i,
+    ]),
+  )
+
+  // P(? < Z < zHigh) = p  → find lower bound
+  const invLow = text.match(
+    /P\s*\(\s*[?_x]\s*<\s*Z\s*<\s*([-+]?\d+(?:\.\d+)?)\s*\)\s*=\s*(\d+(?:\.\d+)?)/i,
+  )
+  if (invLow) {
+    values.query = 'invBetweenLow'
+    values.zHigh = Number(invLow[1])
+    values.probability = Number(invLow[2])
+    return values
+  }
+
+  // P(zLow < Z < ?) = p  → find upper bound
+  const invHigh = text.match(
+    /P\s*\(\s*([-+]?\d+(?:\.\d+)?)\s*<\s*Z\s*<\s*[?_x]\s*\)\s*=\s*(\d+(?:\.\d+)?)/i,
+  )
+  if (invHigh) {
+    values.query = 'invBetweenHigh'
+    values.zLow = Number(invHigh[1])
+    values.probability = Number(invHigh[2])
+    return values
+  }
+
+  // Find z such that P(a < Z < z) = p  (unknown written as z)
+  const findUpper = text.match(
+    /P\s*\(\s*([-+]?\d+(?:\.\d+)?)\s*<\s*Z\s*<\s*z\s*\)\s*=\s*(\d+(?:\.\d+)?)/i,
+  )
+  if (findUpper && /find\s+z|such that/i.test(text)) {
+    values.query = 'invBetweenHigh'
+    values.zLow = Number(findUpper[1])
+    values.probability = Number(findUpper[2])
+    return values
+  }
+
+  // P(Z < ?) = p or P(Z ≤ z) = p with unknown z / find z
+  const invLeft = text.match(
+    /P\s*\(\s*Z\s*[≤<]\s*[?_z]\s*\)\s*=\s*(\d+(?:\.\d+)?)/i,
+  )
+  if (
+    invLeft ||
+    (/find\s+z|such that/i.test(text) &&
+      /P\s*\(\s*Z\s*[≤<]/i.test(text) &&
+      probEq !== undefined)
+  ) {
+    return {
+      query: 'inverse',
+      probability:
+        invLeft && invLeft[1] !== undefined ? Number(invLeft[1]) : (probEq as number),
+    }
+  }
+
   const between = text.match(
     /P\s*\(\s*([-+]?\d+(?:\.\d+)?)\s*<\s*Z\s*<\s*([-+]?\d+(?:\.\d+)?)\s*\)|between\s+([-+]?\d+(?:\.\d+)?)\s+and\s+([-+]?\d+(?:\.\d+)?)/i,
   )
@@ -1002,7 +1064,8 @@ function normalize(s: string): string {
   return s
     .toLowerCase()
     .replace(/[’']/g, "'")
-    .replace(/[^a-z0-9.%]+/g, ' ')
+    // Keep ? < > = so fingerprints like "? < z < 1" still match
+    .replace(/[^a-z0-9.%?<>=_+-]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -1139,10 +1202,10 @@ function matchLegacyExample(text: string) {
 }
 
 function splitComparisonParts(text: string): { label: string; body: string }[] {
-  // Prefer lettered parts: a. ... b. ...
+  // Prefer lettered parts: a. ... b. ... (allow same-line after a period)
   const lettered = [
     ...text.matchAll(
-      /(?:^|\n|\s)([a-e])[\.)]\s*([\s\S]*?)(?=(?:^|\n|\s)[a-e][\.)]\s*|$)/gi,
+      /(?:^|\n|[.!?]\s+)([a-e])[\.)]\s+([\s\S]*?)(?=(?:^|\n|[.!?]\s+)[a-e][\.)]\s+|$)/gi,
     ),
   ]
   if (lettered.length >= 2) {
@@ -1152,9 +1215,11 @@ function splitComparisonParts(text: string): { label: string; body: string }[] {
     }))
   }
 
-  // Numbered 1. 2.
+  // Numbered 1. 2. — ONLY at line starts (never mid-expression like "Z < 1)")
   const numbered = [
-    ...text.matchAll(/(?:^|\n|\s)([1-4])[\.)]\s*([\s\S]*?)(?=(?:^|\n|\s)[1-4][\.)]\s*|$)/g),
+    ...text.matchAll(
+      /(?:^|\n)\s*([1-9]\d*)[\.)]\s+([\s\S]*?)(?=(?:^|\n)\s*[1-9]\d*[\.)]\s+|$)/g,
+    ),
   ]
   if (numbered.length >= 2) {
     return numbered.map((m) => ({
@@ -1247,7 +1312,7 @@ function extractSharedContext(text: string): string {
 
 export function parseProblemText(raw: string): ParseResult | null {
   const text = raw.trim()
-  if (text.length < 12) return null
+  if (text.length < 8) return null
 
   const split = splitComparisonParts(text)
   const trained = matchTrainingCase(text)

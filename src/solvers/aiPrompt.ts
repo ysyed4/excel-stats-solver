@@ -6,6 +6,7 @@ const SOLVER_IDS = SOLVERS.map((s) => s.id)
 function fewShotBlock(): string {
   // Prefer cases that teach hard Poisson scaling + classic MMA discrete splits
   const preferredIds = [
+    'z-unknown-lower',
     'kodiak-halibut-weight-total',
     'kodiak-halibut-each-day',
     'kodiak-halibut-trip',
@@ -15,7 +16,6 @@ function fewShotBlock(): string {
     'photo-radar',
     'winter-wonderland-slips',
     'lightning-poisson',
-    'calvin-pass',
   ]
   const preferred = preferredIds
     .map((id) => TRAINING_CASES.find((tc) => tc.id === id))
@@ -50,6 +50,12 @@ Decision rules (MMA distribution tree):
 - Equal likelihood over [a,b] → uniform
 - Continuous with μ,σ (or N(μ,σ)) → normal
 - Z ~ N(0,1) lookups → standard-normal
+  · P(Z<z), P(Z>z), P(a<Z<b) → less | greater | between
+  · P(? < Z < zHigh) = p → query=invBetweenLow, zHigh, probability=p
+    Excel: =NORM.S.INV(NORM.S.DIST(zHigh,TRUE)-p)
+  · P(zLow < Z < ?) = p → query=invBetweenHigh, zLow, probability=p
+    Excel: =NORM.S.INV(NORM.S.DIST(zLow,TRUE)+p)
+  · Find z with P(Z≤z)=p → query=inverse, probability=p
 - t lookups / unknown σ CI → t-dist or ci-mean-t
 - Sample mean probabilities → sample-mean
 - Sample proportion probabilities → sample-proportion

@@ -1086,6 +1086,146 @@ function solveStandardNormal(values: Record<string, unknown>): SolveResult {
     }
   }
 
+  // P(? < Z < zHigh) = p  →  Φ(zHigh) − Φ(z*) = p  →  z* = NORM.S.INV(Φ(zHigh) − p)
+  if (query === 'invBetweenLow') {
+    const zHigh = num(values, 'zHigh')
+    const probability = num(values, 'probability')
+    const phiHigh = NORM_S_DIST(zHigh, true)
+    const target = phiHigh - probability
+    if (!(target > 0 && target < 1)) {
+      throw new Error(
+        `Need 0 < Φ(${zHigh}) − ${probability} < 1 (got ${fmt(target)}). Check the known z and probability.`,
+      )
+    }
+    const zStar = NORM_S_INV(target)
+    const excelPhi = formatExcelCall('NORM.S.DIST', [zHigh, true])
+    const excelInv = `=NORM.S.INV(${excelPhi.slice(1)} - ${probability})`
+    return {
+      excelCalls: [excelInv],
+      lines: [
+        { label: `Φ(${zHigh})`, value: fmt(phiHigh) },
+        { label: `Φ(z*) = Φ(${zHigh}) − ${probability}`, value: fmt(target) },
+        {
+          label: `z* such that P(z* < Z < ${zHigh}) = ${probability}`,
+          value: fmt(zStar, 4),
+          emphasis: true,
+        },
+      ],
+      walkthrough: {
+        title: 'Standard Normal · find lower bound',
+        distribution: 'Z ~ N(0, 1)',
+        find: `z* with P(z* < Z < ${zHigh}) = ${probability}`,
+        diagram: {
+          kind: 'normal-shade',
+          mean: 0,
+          sd: 1,
+          shade: 'between',
+          lower: zStar,
+          upper: zHigh,
+          caption: `Unknown lower z*; upper = ${zHigh}; shaded area = ${probability}`,
+        },
+        steps: [
+          step(1, 'Determine the distribution', 'Standard Normal Z ~ N(0, 1).'),
+          step(
+            2,
+            'Code the problem',
+            `Known upper z = ${zHigh}, target middle probability = ${probability}.`,
+          ),
+          step(
+            3,
+            'Identify what to find',
+            `Find z* so Φ(${zHigh}) − Φ(z*) = ${probability}.`,
+          ),
+          step(4, 'Draw a diagram', `Shade from z* up to ${zHigh}.`),
+          step(
+            5,
+            'Translate for Excel',
+            `Φ(z*) = NORM.S.DIST(${zHigh},TRUE) − ${probability}, then NORM.S.INV(…).`,
+            { excel: [excelPhi, excelInv] },
+          ),
+          step(
+            6,
+            'Solve and check',
+            `Φ(${zHigh}) ≈ ${fmt(phiHigh)}, so Φ(z*) ≈ ${fmt(target)} → z* ≈ ${fmt(zStar, 4)}.`,
+            { values: [{ label: 'z*', value: fmt(zStar, 4) }] },
+          ),
+        ],
+        explanation:
+          'Unknown endpoint problems rearrange the between identity, then invert the standard normal CDF.',
+      },
+    }
+  }
+
+  // P(zLow < Z < ?) = p  →  Φ(z*) − Φ(zLow) = p  →  z* = NORM.S.INV(Φ(zLow) + p)
+  if (query === 'invBetweenHigh') {
+    const zLow = num(values, 'zLow')
+    const probability = num(values, 'probability')
+    const phiLow = NORM_S_DIST(zLow, true)
+    const target = phiLow + probability
+    if (!(target > 0 && target < 1)) {
+      throw new Error(
+        `Need 0 < Φ(${zLow}) + ${probability} < 1 (got ${fmt(target)}). Check the known z and probability.`,
+      )
+    }
+    const zStar = NORM_S_INV(target)
+    const excelPhi = formatExcelCall('NORM.S.DIST', [zLow, true])
+    const excelInv = `=NORM.S.INV(${excelPhi.slice(1)} + ${probability})`
+    return {
+      excelCalls: [excelInv],
+      lines: [
+        { label: `Φ(${zLow})`, value: fmt(phiLow) },
+        { label: `Φ(z*) = Φ(${zLow}) + ${probability}`, value: fmt(target) },
+        {
+          label: `z* such that P(${zLow} < Z < z*) = ${probability}`,
+          value: fmt(zStar, 4),
+          emphasis: true,
+        },
+      ],
+      walkthrough: {
+        title: 'Standard Normal · find upper bound',
+        distribution: 'Z ~ N(0, 1)',
+        find: `z* with P(${zLow} < Z < z*) = ${probability}`,
+        diagram: {
+          kind: 'normal-shade',
+          mean: 0,
+          sd: 1,
+          shade: 'between',
+          lower: zLow,
+          upper: zStar,
+          caption: `Lower = ${zLow}; unknown upper z*; shaded area = ${probability}`,
+        },
+        steps: [
+          step(1, 'Determine the distribution', 'Standard Normal Z ~ N(0, 1).'),
+          step(
+            2,
+            'Code the problem',
+            `Known lower z = ${zLow}, target middle probability = ${probability}.`,
+          ),
+          step(
+            3,
+            'Identify what to find',
+            `Find z* so Φ(z*) − Φ(${zLow}) = ${probability}.`,
+          ),
+          step(4, 'Draw a diagram', `Shade from ${zLow} up to z*.`),
+          step(
+            5,
+            'Translate for Excel',
+            `Φ(z*) = NORM.S.DIST(${zLow},TRUE) + ${probability}, then NORM.S.INV(…).`,
+            { excel: [excelPhi, excelInv] },
+          ),
+          step(
+            6,
+            'Solve and check',
+            `Φ(${zLow}) ≈ ${fmt(phiLow)}, so Φ(z*) ≈ ${fmt(target)} → z* ≈ ${fmt(zStar, 4)}.`,
+            { values: [{ label: 'z*', value: fmt(zStar, 4) }] },
+          ),
+        ],
+        explanation:
+          'Unknown endpoint problems rearrange the between identity, then invert the standard normal CDF.',
+      },
+    }
+  }
+
   const probability = num(values, 'probability')
   const z = NORM_S_INV(probability)
   const excel = formatExcelCall('NORM.S.INV', [probability])

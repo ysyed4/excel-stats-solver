@@ -139,6 +139,17 @@ export const EXAMPLES: ExampleProblem[] = [
     },
   },
   {
+    id: 'z-unknown-lower',
+    solverId: 'standard-normal',
+    title: 'Z · find lower bound',
+    prompt: 'P(? < Z < 1) = 0.1. Find the unknown lower z.',
+    values: {
+      query: 'invBetweenLow',
+      zHigh: 1,
+      probability: 0.1,
+    },
+  },
+  {
     id: 'blackout',
     solverId: 'normal',
     title: 'Ontario peak demand',

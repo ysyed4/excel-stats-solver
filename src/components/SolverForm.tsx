@@ -203,7 +203,15 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
                 { value: 'less', label: 'P(Z ≤ z)' },
                 { value: 'greater', label: 'P(Z > z)' },
                 { value: 'between', label: 'P(z₁ < Z < z₂)' },
-                { value: 'inverse', label: 'Find z from probability' },
+                { value: 'inverse', label: 'Find z from left-tail P' },
+                {
+                  value: 'invBetweenLow',
+                  label: 'Find lower z in P(z < Z < z₂) = p',
+                },
+                {
+                  value: 'invBetweenHigh',
+                  label: 'Find upper z in P(z₁ < Z < z) = p',
+                },
               ]}
             />
           </Field>
@@ -229,6 +237,36 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
                 onChange={(x) => onChange('probability', x)}
               />
             </Field>
+          ) : v('query', 'less') === 'invBetweenLow' ? (
+            <>
+              <Field label="Known upper z">
+                <NumberInput
+                  value={v('zHigh', '1')}
+                  onChange={(x) => onChange('zHigh', x)}
+                />
+              </Field>
+              <Field label="Middle probability p">
+                <NumberInput
+                  value={v('probability', '0.1')}
+                  onChange={(x) => onChange('probability', x)}
+                />
+              </Field>
+            </>
+          ) : v('query', 'less') === 'invBetweenHigh' ? (
+            <>
+              <Field label="Known lower z">
+                <NumberInput
+                  value={v('zLow', '0')}
+                  onChange={(x) => onChange('zLow', x)}
+                />
+              </Field>
+              <Field label="Middle probability p">
+                <NumberInput
+                  value={v('probability', '0.1')}
+                  onChange={(x) => onChange('probability', x)}
+                />
+              </Field>
+            </>
           ) : (
             <Field label="z">
               <NumberInput value={v('z', '1')} onChange={(x) => onChange('z', x)} />
