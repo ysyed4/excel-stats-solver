@@ -1,6 +1,7 @@
 import { SOLVERS, type SolverId } from './types'
 import {
   parseProblemText,
+  pickBestPart,
   type ParseResult,
   type ParsedPart,
 } from './parseProblem'
@@ -67,7 +68,8 @@ function sanitizeResult(raw: unknown, fallbackText: string): ParseResult {
     if (parts.length < 2) parts = undefined
   }
 
-  const primary = parts?.[0]
+  const primary =
+    parts && parts.length > 0 ? pickBestPart(parts, fallbackText) : undefined
   return {
     solverId: primary?.solverId ?? solverId,
     values: primary?.values ?? values,

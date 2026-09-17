@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { detectProblem } from '../solvers/aiDetect'
 import {
   parseProblemText,
+  pickBestPart,
   type ParseResult,
   type ParsedPart,
 } from '../solvers/parseProblem'
@@ -11,6 +12,26 @@ interface ProblemPasteProps {
   parts?: ParsedPart[]
   activePartId?: string | null
   onSelectPart?: (part: ParsedPart) => void
+}
+
+function summarizeValues(
+  values: Record<string, string | number | boolean>,
+): string {
+  const keys = [
+    'lambda',
+    'hours',
+    'independentDays',
+    'n',
+    'p',
+    'query',
+    'x',
+    'mean',
+    'sd',
+  ]
+  const bits = keys
+    .filter((k) => values[k] !== undefined && values[k] !== '')
+    .map((k) => `${k}=${String(values[k])}`)
+  return bits.length ? bits.join(', ') : 'defaults'
 }
 
 export function ProblemPaste({
@@ -23,44 +44,88 @@ export function ProblemPaste({
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const textRef = useRef<HTMLTextAreaElement>(null)
+
+  function currentText(): string {
+    // Prefer live DOM value so paste + immediate click never races React state
+    return (textRef.current?.value ?? text).trim()
+  }
 
   function applyResult(
     result: ParseResult,
     source: 'ai' | 'local',
     message?: string,
+    sourceText?: string,
   ) {
-    if (result.confidence === 'low' && Object.keys(result.values).length === 0) {
-      setError(result.notes.join(' '))
+    const hasValues = Object.keys(result.values ?? {}).length > 0
+    if (result.confidence === 'low' && !hasValues && !result.parts?.length) {
+      setError(result.notes.join(' ') || 'Could not detect a solver from this text.')
       setStatus(result.summary)
       return
     }
-    onParsed(result, result.parts?.[0])
+
+    const chosen =
+      result.parts && result.parts.length > 0
+        ? pickBestPart(result.parts, sourceText ?? currentText())
+        : undefined
+
+    onParsed(result, chosen ?? result.parts?.[0])
+
+    const filled = summarizeValues(chosen?.values ?? result.values ?? {})
     const src =
       source === 'ai' ? 'AI' : 'Local training corpus / heuristics'
+    const partNote = chosen ? ` · loaded ${chosen.label}` : ''
+    setError(null)
     setStatus(
-      `${result.summary} · via ${src}${result.family ? ` · ${result.family}` : ''}${
-        message ? ` — ${message}` : ''
-      }`,
+      `${result.summary}${partNote} · filled ${filled} · via ${src}${
+        result.family ? ` · ${result.family}` : ''
+      }${message ? ` — ${message}` : ''}`,
     )
+
+    // Bring the Inputs panel into view after autofill
+    requestAnimationFrame(() => {
+      document.getElementById('solver-inputs')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+    })
   }
 
   function handleLocal() {
     setError(null)
-    const result = parseProblemText(text)
+    const raw = currentText()
+    if (raw.length < 12) {
+      setError('Paste a longer problem statement first.')
+      setStatus(null)
+      return
+    }
+    // Keep React state in sync if DOM was ahead
+    if (raw !== text.trim()) setText(raw)
+
+    const result = parseProblemText(raw)
     if (!result) {
       setError('Paste a longer problem statement first.')
       setStatus(null)
       return
     }
-    applyResult(result, 'local')
+    applyResult(result, 'local', undefined, raw)
   }
 
   async function handleAi() {
     setError(null)
     setBusy(true)
+    const raw = currentText()
+    if (raw.length < 12) {
+      setError('Paste a longer problem statement first.')
+      setStatus(null)
+      setBusy(false)
+      return
+    }
+    if (raw !== text.trim()) setText(raw)
+
     try {
-      const { result, source, message } = await detectProblem(text)
-      applyResult(result, source, message)
+      const { result, source, message } = await detectProblem(raw)
+      applyResult(result, source, message, raw)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Detection failed')
       setStatus(null)
@@ -80,6 +145,7 @@ export function ProblemPaste({
         </p>
       </div>
       <textarea
+        ref={textRef}
         className="paste-input"
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -111,6 +177,7 @@ export function ProblemPaste({
             setText('')
             setStatus(null)
             setError(null)
+            if (textRef.current) textRef.current.value = ''
           }}
         >
           Clear

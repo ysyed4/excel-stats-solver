@@ -15,7 +15,7 @@ import './App.css'
 
 export const DEFAULTS: Record<SolverId, Record<string, string | number | boolean>> = {
   binomial: { n: 20, p: 0.5, query: 'atLeast', x: 10, x2: 15 },
-  poisson: { lambda: 1.5, hours: 1, query: 'equal', x: 0 },
+  poisson: { lambda: 1.5, hours: 1, independentDays: 1, query: 'equal', x: 0 },
   uniform: {
     a: 2000,
     b: 5000,
@@ -49,6 +49,7 @@ function App() {
   const [values, setValues] = useState(DEFAULTS.binomial)
   const [parsedParts, setParsedParts] = useState<ParsedPart[] | undefined>()
   const [activePartId, setActivePartId] = useState<string | null>(null)
+  const [formKey, setFormKey] = useState(0)
 
   const meta = SOLVERS.find((s) => s.id === solverId)!
   const examples = EXAMPLES.filter((e) => e.solverId === solverId)
@@ -64,9 +65,17 @@ function App() {
     }
   }, [solverId, values])
 
-  function selectSolver(id: SolverId) {
+  function fillSolver(
+    id: SolverId,
+    next: Record<string, string | number | boolean>,
+  ) {
     setSolverId(id)
-    setValues({ ...DEFAULTS[id] })
+    setValues({ ...DEFAULTS[id], ...next })
+    setFormKey((k) => k + 1)
+  }
+
+  function selectSolver(id: SolverId) {
+    fillSolver(id, DEFAULTS[id])
     setParsedParts(undefined)
     setActivePartId(null)
   }
@@ -74,20 +83,19 @@ function App() {
   function loadExample(id: string) {
     const example = EXAMPLES.find((e) => e.id === id)
     if (!example) return
-    setSolverId(example.solverId)
-    setValues({ ...DEFAULTS[example.solverId], ...example.values })
+    fillSolver(example.solverId, example.values)
     setParsedParts(undefined)
     setActivePartId(null)
   }
 
   function applyPart(part: ParsedPart) {
-    setSolverId(part.solverId)
-    setValues({ ...DEFAULTS[part.solverId], ...part.values })
+    fillSolver(part.solverId, part.values)
     setActivePartId(part.id)
   }
 
   function applyParsed(parsed: ParseResult, part?: ParsedPart) {
-    if (parsed.confidence === 'low' && Object.keys(parsed.values).length === 0) {
+    const hasValues = Object.keys(parsed.values ?? {}).length > 0
+    if (parsed.confidence === 'low' && !hasValues && !parsed.parts?.length) {
       return
     }
     if (parsed.parts && parsed.parts.length > 0) {
@@ -97,8 +105,7 @@ function App() {
     }
     setParsedParts(undefined)
     setActivePartId(null)
-    setSolverId(parsed.solverId)
-    setValues({ ...DEFAULTS[parsed.solverId], ...parsed.values })
+    fillSolver(parsed.solverId, parsed.values ?? {})
   }
 
   return (
@@ -136,7 +143,7 @@ function App() {
           onSelectPart={applyPart}
         />
 
-        <main className="panel">
+        <main className="panel" id="solver-inputs">
           {examples.length > 0 ? (
             <div className="examples">
               <span className="examples-label">Quick-load curated example</span>
@@ -158,6 +165,7 @@ function App() {
 
           <h2 className="section-title">Inputs</h2>
           <SolverForm
+            key={`${solverId}-${formKey}`}
             solverId={solverId}
             values={values}
             onChange={(key, value) =>

@@ -6,6 +6,7 @@ const SOLVER_IDS = SOLVERS.map((s) => s.id)
 function fewShotBlock(): string {
   // Prefer cases that teach hard Poisson scaling + classic MMA discrete splits
   const preferredIds = [
+    'kodiak-halibut-each-day',
     'kodiak-halibut-trip',
     'alaska-fish-poisson',
     'office-space',
@@ -55,19 +56,23 @@ Decision rules (MMA distribution tree):
 - Required sample size → n-mean or n-proportion
 
 Query conventions:
-- binomial/poisson: equal | atMost | atLeast | moreThan (moreThan = P(X>x) = 1−DIST(x,…,TRUE))
+- binomial/poisson: equal | atMost | atLeast | moreThan
+- “k or more” / “at least k” → query=atLeast, x=k → Excel 1−DIST(k−1,…,TRUE)
+- “more than k” → query=moreThan, x=k → Excel 1−DIST(k,…,TRUE)
+- Never treat “15 or more” as moreThan with x=15 (that is P(X>15)=P(X≥16), off-by-one)
 - For desk/capacity “do we have a problem?” with X > desks: query=moreThan, x=desks
 - Office Space (a): binomial n=50 p=0.3 moreThan x=20; (b): poisson λ=15 moreThan x=20
 - Red/Blue cars: (a) poisson λ=10 moreThan x=9; (b) binomial n=15 p=0.3 atLeast x=5
 
-CRITICAL — Poisson rate scaling (people × hours × days):
-- App fields: lambda = base rate per period, hours = interval multiplier, λ_used = lambda × hours
-- If rate is per person per hour and the question is about a multi-day trip, you MUST scale to the question window.
-- Example (Kodiak / Norwegian anglers): 3 anglers × 4 hours/day × 1.5 fish/hour = 18 fish/day.
-  Question “more than 90 fish during their trip” over 4 days → set lambda=18 and hours=4 (λ_used=72),
-  OR set lambda=72 and hours=1. Never leave hours=1 with only the daily rate when the question is trip-total.
-- Example (Alaska practice): 4 men × 3 hours × 5 days × 2 fish/hour → daily λ=24, hours=5 (λ_used=120), or lambda=120 hours=1.
-- Always align λ with the same time window as the probability question (per day vs per trip).
+CRITICAL — Poisson rate scaling vs independent days:
+- App fields: lambda = base rate per period, hours = interval multiplier (λ_used = lambda × hours),
+  independentDays = raise the single-period probability to this power (default 1)
+- Trip TOTAL (“more than 90 fish during their trip”): scale λ. Kodiak → lambda=18, hours=4, independentDays=1
+- SAME event on EACH of N independent days (“15 or more fish on each of the four days”):
+  do NOT scale λ. Use daily λ, atLeast, and independentDays=N.
+  Kodiak (b): lambda=18, hours=1, independentDays=4, query=atLeast, x=15
+  → Excel =(1-POISSON.DIST(14,18,TRUE))^4
+- Interval multiplier scales the RATE; independentDays raises the PROBABILITY. Never use hours=4 for “each of four days”.
 
 Return ONLY valid JSON (no markdown fences):
 {
@@ -78,7 +83,7 @@ Return ONLY valid JSON (no markdown fences):
   "family": "discrete" | "continuous" | "sampling",
   "parts": [ { "label": "Part A", "solverId": "...", "values": {}, "rationale": "..." } ]
 }
-Omit parts unless the problem clearly has distinct a/b setups.
+Omit parts unless the problem clearly has distinct a/b setups. When both Kodiak (a) trip-total and (b) each-day appear, ALWAYS return parts for both.
 
 Few-shot training from course practice:
 ${fewShotBlock()}

@@ -235,21 +235,69 @@ export const TRAINING_CASES: TrainingCase[] = [
   },
   {
     id: 'kodiak-halibut-trip',
-    title: 'Kodiak halibut · trip total',
+    title: 'Kodiak halibut · trip total vs each day',
     fingerprints: [
       'norwegian anglers',
       'halibut',
       'kodiak',
       '1.5 fish per hour',
       'more than 90 fish',
+      '15 or more',
       'four days',
     ],
     prompt:
-      'Three Norwegian anglers, four-hour charter each of four days, 1.5 fish/hour typical. P(more than 90 fish during their trip)?',
+      'Three Norwegian anglers, four-hour charter each of four days, 1.5 fish/hour. (a) P(more than 90 fish during their trip)? (b) P(15 or more fish on each of the four days)?',
     solverId: 'poisson',
-    values: { lambda: 18, hours: 4, query: 'moreThan', x: 90 },
+    values: { lambda: 18, hours: 4, independentDays: 1, query: 'moreThan', x: 90 },
     rationale:
-      'Daily λ = 3 anglers × 4 hrs × 1.5 fish/hr = 18. Trip = 4 days → hours multiplier 4, λ_used = 72. P(X>90)=1−POISSON.DIST(90,72,TRUE).',
+      'Daily λ = 3×4×1.5 = 18. (a) trip total → scale λ by 4. (b) same daily event on each independent day → atLeast 15, raise P to 4th power.',
+    parts: [
+      {
+        label: 'Part A',
+        solverId: 'poisson',
+        values: { lambda: 18, hours: 4, independentDays: 1, query: 'moreThan', x: 90 },
+        rationale:
+          'Trip total: λ_used = 18×4 = 72. P(X>90)=1−POISSON.DIST(90,72,TRUE).',
+        fingerprints: ['more than 90 fish', 'during their trip'],
+      },
+      {
+        label: 'Part B',
+        solverId: 'poisson',
+        values: {
+          lambda: 18,
+          hours: 1,
+          independentDays: 4,
+          query: 'atLeast',
+          x: 15,
+        },
+        rationale:
+          '“15 or more” → P(X≥15)=1−POISSON.DIST(14,18,TRUE). “On each of four days” → raise to 4th power (do not scale λ).',
+        fingerprints: ['15 or more', 'on each of the four days'],
+      },
+    ],
+    source: 'User practice / Alaska charter variant',
+  },
+  {
+    id: 'kodiak-halibut-each-day',
+    title: 'Kodiak halibut · each day',
+    fingerprints: [
+      'norwegian anglers',
+      '1.5 fish per hour',
+      '15 or more',
+      'on each of the four days',
+    ],
+    prompt:
+      'Three Norwegian anglers, four-hour charter × four days, 1.5 fish/hour. P(15 or more fish on each of the four days)?',
+    solverId: 'poisson',
+    values: {
+      lambda: 18,
+      hours: 1,
+      independentDays: 4,
+      query: 'atLeast',
+      x: 15,
+    },
+    rationale:
+      'Daily λ=18. P(X≥15)=1−POISSON.DIST(14,18,TRUE) ≈ 0.7919; four independent days → (…)^4 ≈ 0.3933.',
     source: 'User practice / Alaska charter variant',
   },
   {

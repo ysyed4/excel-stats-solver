@@ -67,10 +67,19 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
               onChange={(x) => onChange('lambda', x)}
             />
           </Field>
-          <Field label="Interval multiplier" hint="days / periods that scale λ">
+          <Field label="Interval multiplier" hint="scales λ (trip total) — not for “each day”">
             <NumberInput
               value={v('hours', '1')}
               onChange={(x) => onChange('hours', x)}
+            />
+          </Field>
+          <Field
+            label="Independent days"
+            hint="raise single-day P to this power (e.g. each of 4 days → 4)"
+          >
+            <NumberInput
+              value={v('independentDays', '1')}
+              onChange={(x) => onChange('independentDays', x)}
             />
           </Field>
           <Field label="Question">
@@ -80,6 +89,7 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
               options={[
                 { value: 'equal', label: 'P(X = x)' },
                 { value: 'atMost', label: 'P(X ≤ x)' },
+                { value: 'atLeast', label: 'P(X ≥ x)' },
                 { value: 'moreThan', label: 'P(X > x)' },
               ]}
             />

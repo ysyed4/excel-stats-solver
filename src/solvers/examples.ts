@@ -71,14 +71,29 @@ export const EXAMPLES: ExampleProblem[] = [
   {
     id: 'kodiak-halibut',
     solverId: 'poisson',
-    title: 'Kodiak halibut trip',
+    title: 'Kodiak · trip total (a)',
     prompt:
       '3 anglers × 4 hrs/day × 1.5 fish/hr × 4 days. P(more than 90 fish during the trip)?',
     values: {
       lambda: 18,
       hours: 4,
+      independentDays: 1,
       query: 'moreThan',
       x: 90,
+    },
+  },
+  {
+    id: 'kodiak-halibut-each-day',
+    solverId: 'poisson',
+    title: 'Kodiak · each day (b)',
+    prompt:
+      '3 anglers × 4 hrs/day × 1.5 fish/hr. P(15 or more fish on each of 4 independent days)?',
+    values: {
+      lambda: 18,
+      hours: 1,
+      independentDays: 4,
+      query: 'atLeast',
+      x: 15,
     },
   },
   {

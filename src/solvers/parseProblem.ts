@@ -9,6 +9,7 @@ export interface ParsedPart {
   rationale: string
   solverId: SolverId
   values: Record<string, string | number | boolean>
+  fingerprints?: string[]
 }
 
 export interface ParseResult {
@@ -313,6 +314,7 @@ function parsePoisson(text: string): Record<string, string | number | boolean> {
   const values: Record<string, string | number | boolean> = {
     lambda: 1.5,
     hours: 1,
+    independentDays: 1,
     query: 'equal',
     x: 0,
   }
@@ -384,19 +386,42 @@ function parsePoisson(text: string): Record<string, string | number | boolean> {
       text,
     )
 
+  // “15 or more fish on each of the four days” → raise daily P to the 4th power (do NOT scale λ)
+  const eachDaysWord = /\bon each of (?:the )?(four|five|three|two)\s+days\b/i.exec(text)
+  const eachDaysNum = /\bon each of (?:the )?(\d+)\s+days\b/i.exec(text)
+  const eachDaysFromPhrase = eachDaysWord
+    ? ({ four: 4, five: 5, three: 3, two: 2 } as Record<string, number>)[
+        eachDaysWord[1].toLowerCase()
+      ]
+    : eachDaysNum
+      ? Number(eachDaysNum[1])
+      : undefined
+  const orMoreOnEach = /(\d+)\s+or more\s+fish\s+on each/i.test(text)
+  const atLeastOnEach = /at least\s+(\d+)\s+fish\s+on each/i.test(text)
+  const independentEach =
+    (orMoreOnEach || atLeastOnEach) &&
+    eachDaysFromPhrase !== undefined &&
+    eachDaysFromPhrase > 1
+
   if (ratePerHour !== undefined && (nPeopleResolved !== undefined || hrs !== undefined)) {
     const nPeople = nPeopleResolved ?? 1
     const nHours = hrs ?? 1
     const dailyLambda = nPeople * nHours * ratePerHour
     values.lambda = dailyLambda
-    // Scale to the question window: full trip → multiply by days
-    if (tripQuestion && dayCount !== undefined && dayCount > 1) {
+    if (independentEach) {
+      // Per-day λ; days are independent repeats of the same event
+      values.hours = 1
+      values.independentDays = eachDaysFromPhrase!
+    } else if (tripQuestion && dayCount !== undefined && dayCount > 1) {
       values.hours = dayCount
+      values.independentDays = 1
     } else if (dayCount !== undefined && dayCount > 1 && /more than\s+\d+\s+fish/i.test(text)) {
       // "more than N fish" with multi-day setup usually means the whole visit
       values.hours = dayCount
+      values.independentDays = 1
     } else {
       values.hours = 1
+      values.independentDays = 1
     }
   } else if (
     // "once every 2 minutes" → rate = 1/2 per minute
@@ -468,7 +493,7 @@ function parsePoisson(text: string): Record<string, string | number | boolean> {
 
   if (
     /no (problems|calls|events|cars)|X\s*=\s*0|\bnone\b/i.test(text) &&
-    !/more than|do we have a problem/i.test(text)
+    !/more than|do we have a problem|or more|at least/i.test(text)
   ) {
     values.query = 'equal'
     values.x = 0
@@ -478,6 +503,18 @@ function parsePoisson(text: string): Record<string, string | number | boolean> {
   ) {
     values.query = 'moreThan'
     values.x = desks
+  } else if (independentEach) {
+    values.query = 'atLeast'
+    const x = num(
+      firstMatch(text, [/(\d+)\s+or more/i, /at least\s+(\d+)/i]),
+    )
+    if (x !== undefined) values.x = x
+  } else if (/(\d+)\s+or more|at least\s+(\d+)/i.test(text) && !/more than\s+\d+/i.test(text)) {
+    values.query = 'atLeast'
+    const x = num(
+      firstMatch(text, [/(\d+)\s+or more/i, /at least\s+(\d+)/i]),
+    )
+    if (x !== undefined) values.x = x
   } else if (/more than\s+(\d+)/i.test(text)) {
     values.query = 'moreThan'
     const x = num(text.match(/more than\s+(\d+)/i))
@@ -486,10 +523,6 @@ function parsePoisson(text: string): Record<string, string | number | boolean> {
     values.query = 'atMost'
     const x = num(firstMatch(text, [/at most\s+(\d+)/i, /X\s*≤\s*(\d+)/i]))
     if (x !== undefined) values.x = x
-  } else if (/at least\s+(\d+)|(\d+)\s+or more/i.test(text)) {
-    values.query = 'moreThan'
-    const x = num(firstMatch(text, [/at least\s+(\d+)/i, /(\d+)\s+or more/i]))
-    if (x !== undefined) values.x = x - 1
   }
 
   return values
@@ -944,16 +977,20 @@ function matchTrainingCase(text: string): TrainingCase | null {
   return best?.case ?? null
 }
 
-function trainingCaseToResult(tc: TrainingCase): ParseResult {
+function trainingCaseToResult(tc: TrainingCase, sourceText?: string): ParseResult {
   const parts: ParsedPart[] | undefined = tc.parts?.map((p, i) => ({
     id: `${tc.id}-${p.label}-${i}`,
     label: p.label,
     rationale: p.rationale,
     solverId: p.solverId,
     values: { ...p.values },
+    fingerprints: p.fingerprints,
   }))
 
-  const primary = parts?.[0]
+  const primary =
+    parts && parts.length > 0
+      ? pickBestPart(parts, sourceText ?? tc.prompt)
+      : undefined
   return {
     solverId: primary?.solverId ?? tc.solverId,
     values: { ...(primary?.values ?? tc.values) },
@@ -964,6 +1001,50 @@ function trainingCaseToResult(tc: TrainingCase): ParseResult {
     notes: [tc.rationale, ...(parts?.map((p) => `${p.label}: ${p.rationale}`) ?? [])],
     parts,
   }
+}
+
+/** Prefer the part whose fingerprints / question letter best match the pasted text. */
+export function pickBestPart(parts: ParsedPart[], text: string): ParsedPart {
+  if (parts.length === 1) return parts[0]
+  const norm = normalize(text)
+
+  const letters = [...text.matchAll(/(?:^|\n|\s)([a-d])[\.)]\s+/gi)].map((m) =>
+    m[1].toUpperCase(),
+  )
+  // Only one lettered question in the paste → that part
+  if (letters.length === 1) {
+    const want = letters[0]
+    const byLetter = parts.find(
+      (p) =>
+        p.label === `Part ${want}` ||
+        p.label === want ||
+        p.label.toUpperCase().endsWith(` ${want}`) ||
+        p.label.toUpperCase() === `PART ${want}`,
+    )
+    if (byLetter) return byLetter
+  }
+
+  const lastLetter = letters.length ? letters[letters.length - 1] : null
+
+  let best: { part: ParsedPart; score: number } | null = null
+  for (const part of parts) {
+    let score = 0
+    const fps = part.fingerprints?.map((f) => normalize(f)).filter(Boolean) ?? []
+    for (const fp of fps) {
+      if (norm.includes(fp)) score += 4
+    }
+    const labelLetter = part.label.replace(/^part\s+/i, '').trim().toUpperCase()
+    if (lastLetter && labelLetter === lastLetter) score += 3
+    if (letters.length === 1 && labelLetter === letters[0]) score += 5
+
+    // Soft cues from rationale / values
+    const blob = normalize(`${part.rationale} ${JSON.stringify(part.values)}`)
+    for (const token of blob.split(' ').filter((w) => w.length > 5)) {
+      if (norm.includes(token)) score += 0.2
+    }
+    if (!best || score > best.score) best = { part, score }
+  }
+  return best?.part ?? parts[0]
 }
 
 function matchLegacyExample(text: string) {
@@ -1102,7 +1183,7 @@ export function parseProblemText(raw: string): ParseResult | null {
 
   // 1) Fingerprint match against MMA practice training corpus
   const trained = matchTrainingCase(text)
-  if (trained) return trainingCaseToResult(trained)
+  if (trained) return trainingCaseToResult(trained, text)
 
   // 2) Multi-part comparison (a vs b) via structural split
   const split = splitComparisonParts(text)
@@ -1113,7 +1194,7 @@ export function parseProblemText(raw: string): ParseResult | null {
       .filter((p): p is ParsedPart => p !== null)
 
     if (parts.length >= 2) {
-      const primary = parts[0]
+      const primary = pickBestPart(parts, text)
       const family = parts.every((p) =>
         ['binomial', 'poisson'].includes(p.solverId),
       )

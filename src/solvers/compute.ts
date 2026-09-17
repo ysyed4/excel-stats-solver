@@ -12,7 +12,7 @@ import {
   roundResult,
   ceilInt,
 } from '../excel/functions'
-import type { SolveResult, SolverId, WalkthroughStep } from './types'
+import type { Diagram, SolveResult, SolverId, WalkthroughStep } from './types'
 
 function num(values: Record<string, unknown>, key: string): number {
   const raw = values[key]
@@ -395,6 +395,10 @@ function solvePoisson(values: Record<string, unknown>): SolveResult {
   const hours =
     values.hours === '' || values.hours === undefined ? 1 : num(values, 'hours')
   const lambda = lambdaBase * hours
+  const independentDays =
+    values.independentDays === '' || values.independentDays === undefined
+      ? 1
+      : Math.max(1, Math.round(num(values, 'independentDays')))
 
   const base = [
     step(
@@ -416,147 +420,212 @@ function solvePoisson(values: Record<string, unknown>): SolveResult {
     ),
   ]
 
-  if (query === 'equal') {
-    const prob = POISSON_DIST(x, lambda, false)
-    const excel = formatExcelCall('POISSON.DIST', [x, lambda, false])
+  function withIndependentDays(
+    oneDayProb: number,
+    oneDayExcelInner: string,
+    oneDayLabel: string,
+    findLabel: string,
+    walkthroughTitle: string,
+    diagram: Diagram,
+    identifyBody: string,
+    drawBody: string,
+    translateBody: string,
+  ): SolveResult {
+    const raised = independentDays > 1 ? oneDayProb ** independentDays : oneDayProb
+    const excelCalls =
+      independentDays > 1
+        ? [`=(${oneDayExcelInner})^${independentDays}`]
+        : [`=${oneDayExcelInner}`]
+    const lines =
+      independentDays > 1
+        ? [
+            { label: 'λ used', value: fmt(lambda, 4) },
+            { label: oneDayLabel, value: fmt(oneDayProb) },
+            {
+              label: `(${oneDayLabel})^${independentDays}`,
+              value: fmt(raised),
+              emphasis: true,
+            },
+          ]
+        : [
+            { label: 'λ used', value: fmt(lambda, 4) },
+            { label: oneDayLabel, value: fmt(raised), emphasis: true },
+          ]
+
+    const steps = [
+      ...base,
+      step(3, 'Identify what to find', identifyBody),
+      step(4, 'Draw a diagram', drawBody),
+      step(5, 'Translate for Excel', translateBody, {
+        excel: [`=${oneDayExcelInner}`],
+      }),
+      step(6, 'Solve and check', `${oneDayLabel} ≈ ${fmt(oneDayProb)}.`, {
+        values: [{ label: oneDayLabel, value: fmt(oneDayProb) }],
+      }),
+    ]
+
+    if (independentDays > 1) {
+      steps.push(
+        step(
+          7,
+          'Independent identical days',
+          `The event must occur on each of ${independentDays} independent days, so raise the single-day probability to the ${independentDays}th power.`,
+          {
+            excel: excelCalls,
+            values: [
+              { label: oneDayLabel, value: fmt(oneDayProb) },
+              {
+                label: `P(all ${independentDays} days)`,
+                value: fmt(raised),
+              },
+            ],
+          },
+        ),
+      )
+    }
+
     return {
-      excelCalls: [excel],
-      lines: [
-        { label: 'λ used', value: fmt(lambda, 4) },
-        { label: `P(X = ${x})`, value: fmt(prob), emphasis: true },
-      ],
+      excelCalls,
+      lines,
+      note:
+        independentDays > 1
+          ? 'Do not scale λ across days here — each day is a separate Poisson trial; raise the daily probability to the power of the number of days.'
+          : 'Scale λ with the interval length when the question covers a longer window (e.g. full trip total).',
       walkthrough: {
-        title: 'Poisson · exact count',
+        title: walkthroughTitle,
         distribution: `X ~ Poisson(λ = ${fmt(lambda, 4)})`,
-        find: `P(X = ${x})`,
-        diagram: {
-          kind: 'number-line',
-          min: 0,
-          max: Math.max(8, x + 3),
-          marks: [
-            { value: 0, label: '0' },
-            { value: x, label: String(x) },
-            { value: Math.max(8, x + 3), label: '…' },
-          ],
-          highlightFrom: x,
-          highlightTo: x,
-          caption: `Single outcome X = ${x}`,
-        },
-        steps: [
-          ...base,
-          step(3, 'Identify what to find', `P(X = ${x}).`),
-          step(4, 'Draw a diagram', `Mark the single count ${x} on a discrete number line.`),
-          step(5, 'Translate for Excel', 'Use POISSON.DIST with cumulative = FALSE.', {
-            excel: [excel],
-          }),
-          step(6, 'Solve and check', `${excel} ≈ ${fmt(prob)}.`, {
-            values: [{ label: `P(X = ${x})`, value: fmt(prob) }],
-          }),
-        ],
-        explanation: 'Scale λ to the interval of interest, then look up the point probability in Excel.',
+        find:
+          independentDays > 1
+            ? `${findLabel} on each of ${independentDays} independent days → (${findLabel})^${independentDays}`
+            : findLabel,
+        diagram,
+        steps,
+        explanation:
+          independentDays > 1
+            ? `Single-day ${findLabel} ≈ ${fmt(oneDayProb)}; over ${independentDays} independent days → ${fmt(raised)}.`
+            : `Use the Poisson CDF (or 1 − CDF) after aligning λ with the question window.`,
       },
     }
+  }
+
+  if (query === 'equal') {
+    const oneDay = POISSON_DIST(x, lambda, false)
+    const inner = formatExcelCall('POISSON.DIST', [x, lambda, false]).slice(1)
+    return withIndependentDays(
+      oneDay,
+      inner,
+      `P(X = ${x})`,
+      `P(X = ${x})`,
+      'Poisson · exact count',
+      {
+        kind: 'number-line',
+        min: 0,
+        max: Math.max(8, x + 3),
+        marks: [
+          { value: 0, label: '0' },
+          { value: x, label: String(x) },
+          { value: Math.max(8, x + 3), label: '…' },
+        ],
+        highlightFrom: x,
+        highlightTo: x,
+        caption: `Single outcome X = ${x}`,
+      },
+      `P(X = ${x}).`,
+      `Mark the single count ${x} on a discrete number line.`,
+      'Use POISSON.DIST with cumulative = FALSE.',
+    )
   }
 
   if (query === 'atMost') {
-    const prob = POISSON_DIST(x, lambda, true)
-    const excel = formatExcelCall('POISSON.DIST', [x, lambda, true])
-    return {
-      excelCalls: [excel],
-      lines: [
-        { label: 'λ used', value: fmt(lambda, 4) },
-        { label: `P(X ≤ ${x})`, value: fmt(prob), emphasis: true },
-      ],
-      walkthrough: {
-        title: 'Poisson · cumulative',
-        distribution: `X ~ Poisson(λ = ${fmt(lambda, 4)})`,
-        find: `P(X ≤ ${x})`,
-        diagram: {
-          kind: 'number-line',
-          min: 0,
-          max: Math.max(8, x + 3),
-          marks: [
-            { value: 0, label: '0' },
-            { value: x, label: String(x) },
-          ],
-          highlightFrom: 0,
-          highlightTo: x,
-          caption: `Shade 0 through ${x}`,
-        },
-        steps: [
-          ...base,
-          step(3, 'Identify what to find', `P(X ≤ ${x}).`),
-          step(4, 'Draw a diagram', `Shade counts from 0 through ${x}.`),
-          step(5, 'Translate for Excel', 'POISSON.DIST with TRUE is the left-tail CDF.', {
-            excel: [excel],
-          }),
-          step(6, 'Solve and check', `${excel} ≈ ${fmt(prob)}.`, {
-            values: [{ label: `P(X ≤ ${x})`, value: fmt(prob) }],
-          }),
+    const oneDay = POISSON_DIST(x, lambda, true)
+    const inner = formatExcelCall('POISSON.DIST', [x, lambda, true]).slice(1)
+    return withIndependentDays(
+      oneDay,
+      inner,
+      `P(X ≤ ${x})`,
+      `P(X ≤ ${x})`,
+      'Poisson · cumulative',
+      {
+        kind: 'number-line',
+        min: 0,
+        max: Math.max(8, x + 3),
+        marks: [
+          { value: 0, label: '0' },
+          { value: x, label: String(x) },
         ],
-        explanation: 'Cumulative Poisson lookups avoid summing many point probabilities by hand.',
+        highlightFrom: 0,
+        highlightTo: x,
+        caption: `Shade 0 through ${x}`,
       },
-    }
+      `P(X ≤ ${x}).`,
+      `Shade counts from 0 through ${x}.`,
+      'POISSON.DIST with TRUE is the left-tail CDF.',
+    )
   }
 
-  const left = POISSON_DIST(x, lambda, true)
-  const prob = 1 - left
-  const excelLeft = formatExcelCall('POISSON.DIST', [x, lambda, true])
-  return {
-    excelCalls: [`=1 - ${excelLeft.slice(1)}`],
-    lines: [
-      { label: 'λ used', value: fmt(lambda, 4) },
-      { label: `P(X ≤ ${x})`, value: fmt(left) },
-      { label: `P(X > ${x})`, value: fmt(prob), emphasis: true },
-    ],
-    note: 'Scale λ with the interval length (e.g. 1.5/hour → λ = 3 for 2 hours).',
-    walkthrough: {
-      title: 'Poisson · more than x',
-      distribution: `X ~ Poisson(λ = ${fmt(lambda, 4)})`,
-      find: `P(X > ${x})`,
-      diagram: {
+  // atLeast: P(X ≥ x) = 1 − P(X ≤ x−1)
+  if (query === 'atLeast') {
+    const cutoff = x - 1
+    const left = cutoff < 0 ? 0 : POISSON_DIST(cutoff, lambda, true)
+    const oneDay = 1 - left
+    const cdfCall =
+      cutoff < 0
+        ? '0'
+        : formatExcelCall('POISSON.DIST', [cutoff, lambda, true]).slice(1)
+    const inner = cutoff < 0 ? '1' : `1 - ${cdfCall}`
+    return withIndependentDays(
+      oneDay,
+      inner,
+      `P(X ≥ ${x})`,
+      `P(X ≥ ${x})`,
+      'Poisson · at least x',
+      {
         kind: 'number-line',
         min: 0,
         max: Math.max(10, x + 5),
         marks: [
           { value: 0, label: '0' },
+          { value: cutoff < 0 ? 0 : cutoff, label: cutoff < 0 ? '—' : String(cutoff) },
           { value: x, label: String(x) },
-          { value: x + 1, label: String(x + 1) },
         ],
-        highlightFrom: x + 1,
+        highlightFrom: x,
         highlightTo: Math.max(10, x + 5),
-        caption: `Shade X ≥ ${x + 1} (i.e. more than ${x})`,
+        caption: `Shade X ≥ ${x} (includes ${x})`,
       },
-      steps: [
-        ...base,
-        step(3, 'Identify what to find', `P(X > ${x}) = P(X ≥ ${x + 1}).`),
-        step(
-          4,
-          'Draw a diagram',
-          `Shade the right side of the number line starting at ${x + 1}.`,
-        ),
-        step(
-          5,
-          'Translate for Excel',
-          `P(X > ${x}) = 1 − P(X ≤ ${x}).`,
-          { excel: [excelLeft, `=1 - ${excelLeft.slice(1)}`] },
-        ),
-        step(
-          6,
-          'Solve and check',
-          `P(X ≤ ${x}) ≈ ${fmt(left)}, so P(X > ${x}) = 1 − ${fmt(left)} = ${fmt(prob)}.`,
-          {
-            values: [
-              { label: `P(X ≤ ${x})`, value: fmt(left) },
-              { label: `P(X > ${x})`, value: fmt(prob) },
-            ],
-          },
-        ),
-      ],
-      explanation:
-        'Remember to rescale λ when the time window changes, then use 1 − CDF for “more than” events.',
-    },
+      `P(X ≥ ${x}) = 1 − P(X ≤ ${cutoff}). “${x} or more” includes ${x}.`,
+      `Shade from ${x} to the right (include the point ${x}).`,
+      `P(X ≥ ${x}) = 1 − POISSON.DIST(${cutoff}, λ, TRUE) — use ${cutoff}, not ${x}.`,
+    )
   }
+
+  // moreThan: P(X > x) = 1 − P(X ≤ x)
+  const left = POISSON_DIST(x, lambda, true)
+  const oneDay = 1 - left
+  const cdfCall = formatExcelCall('POISSON.DIST', [x, lambda, true]).slice(1)
+  const inner = `1 - ${cdfCall}`
+  return withIndependentDays(
+    oneDay,
+    inner,
+    `P(X > ${x})`,
+    `P(X > ${x})`,
+    'Poisson · more than x',
+    {
+      kind: 'number-line',
+      min: 0,
+      max: Math.max(10, x + 5),
+      marks: [
+        { value: 0, label: '0' },
+        { value: x, label: String(x) },
+        { value: x + 1, label: String(x + 1) },
+      ],
+      highlightFrom: x + 1,
+      highlightTo: Math.max(10, x + 5),
+      caption: `Shade X ≥ ${x + 1} (i.e. more than ${x})`,
+    },
+    `P(X > ${x}) = P(X ≥ ${x + 1}) = 1 − P(X ≤ ${x}).`,
+    `Shade the right side of the number line starting at ${x + 1}.`,
+    `P(X > ${x}) = 1 − P(X ≤ ${x}).`,
+  )
 }
 
 function solveUniform(values: Record<string, unknown>): SolveResult {
