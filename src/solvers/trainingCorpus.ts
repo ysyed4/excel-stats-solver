@@ -235,7 +235,7 @@ export const TRAINING_CASES: TrainingCase[] = [
   },
   {
     id: 'kodiak-halibut-trip',
-    title: 'Kodiak halibut · trip total vs each day',
+    title: 'Kodiak halibut · trip / each day / weight total',
     fingerprints: [
       'norwegian anglers',
       'halibut',
@@ -243,14 +243,15 @@ export const TRAINING_CASES: TrainingCase[] = [
       '1.5 fish per hour',
       'more than 90 fish',
       '15 or more',
+      '1,300',
       'four days',
     ],
     prompt:
-      'Three Norwegian anglers, four-hour charter each of four days, 1.5 fish/hour. (a) P(more than 90 fish during their trip)? (b) P(15 or more fish on each of the four days)?',
+      'Three Norwegian anglers, four-hour charter each of four days, 1.5 fish/hour, fish weigh ~40 lbs sd 10. (a) P(more than 90 fish during trip)? (b) P(15 or more on each of four days)? (c) P(first 30 fish weigh more than 1300 lbs)?',
     solverId: 'poisson',
     values: { lambda: 18, hours: 4, independentDays: 1, query: 'moreThan', x: 90 },
     rationale:
-      'Daily λ = 3×4×1.5 = 18. (a) trip total → scale λ by 4. (b) same daily event on each independent day → atLeast 15, raise P to 4th power.',
+      'Daily λ = 3×4×1.5 = 18. (a) trip total → scale λ. (b) independent days → raise P. (c) weights → sample mean / CLT with x̄ = 1300/30.',
     parts: [
       {
         label: 'Part A',
@@ -274,7 +275,52 @@ export const TRAINING_CASES: TrainingCase[] = [
           '“15 or more” → P(X≥15)=1−POISSON.DIST(14,18,TRUE). “On each of four days” → raise to 4th power (do not scale λ).',
         fingerprints: ['15 or more', 'on each of the four days'],
       },
+      {
+        label: 'Part C',
+        solverId: 'sample-mean',
+        values: {
+          mean: 40,
+          sd: 10,
+          n: 30,
+          query: 'greater',
+          value: 1300 / 30,
+          useFpc: false,
+        },
+        rationale:
+          'Fish weights ~ mean 40, sd 10. First 30 fish: P(sum>1300)=P(x̄>1300/30). SE=10/√30; 1−NORM.DIST(43.333,40,SE,TRUE).',
+        fingerprints: [
+          'first 30 fish',
+          'weigh more than',
+          '1,300',
+          '1300',
+        ],
+      },
     ],
+    source: 'User practice / Alaska charter variant',
+  },
+  {
+    id: 'kodiak-halibut-weight-total',
+    title: 'Kodiak · first 30 fish weight',
+    fingerprints: [
+      'halibut',
+      '40 lbs',
+      'standard deviation of 10',
+      'first 30 fish',
+      '1,300',
+    ],
+    prompt:
+      'Halibut average 40 lbs sd 10. P(first 30 fish weigh more than 1300 lbs in total)?',
+    solverId: 'sample-mean',
+    values: {
+      mean: 40,
+      sd: 10,
+      n: 30,
+      query: 'greater',
+      value: 1300 / 30,
+      useFpc: false,
+    },
+    rationale:
+      'P(Σ>1300)=P(x̄>43.333). x̄≈N(40, 10/√30). =1−NORM.DIST(43.333,40,10/SQRT(30),TRUE).',
     source: 'User practice / Alaska charter variant',
   },
   {

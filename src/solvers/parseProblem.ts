@@ -131,6 +131,16 @@ function scoreSampleMean(text: string): number {
   if (/random sample of\s+\d+/.test(t) && /mean/.test(t) && !/confidence/.test(t))
     score += 5
   if (/finite population|units/.test(t) && /sample of/.test(t)) score += 2
+  // Total of n i.i.d. measurements → CLT on the sample mean (or sum)
+  if (/first\s+\d+\s+(fish|items|observations|customers|units)/.test(t)) score += 5
+  if (/in total.*weigh|weigh more than|total weight|weigh(?:ing)?\s+more than/.test(t))
+    score += 6
+  if (
+    /average.+(?:weigh|weight|lbs)|weighing\s+\d+/.test(t) &&
+    /standard deviation/.test(t)
+  ) {
+    score += 4
+  }
   return score
 }
 
@@ -722,28 +732,52 @@ function parseSampleMean(text: string): Record<string, string | number | boolean
 
   const mean = num(
     firstMatch(text, [
-      /mean of\s*\$?\s*([\d,]+)/i,
-      /μ\s*=\s*\$?\s*([\d,]+)/i,
-      /\$?\s*([\d,]+)\s*per month/i,
+      /average(?:\s+\w+){0,3}\s+weighing\s+([\d,]+(?:\.\d+)?)/i,
+      /average(?:\s+\w+){0,3}\s+weight(?:ing)?\s+of\s+([\d,]+(?:\.\d+)?)/i,
+      /mean of\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /μ\s*=\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /\$?\s*([\d,]+(?:\.\d+)?)\s*per month/i,
+      /weighing\s+([\d,]+(?:\.\d+)?)\s*lbs?/i,
     ]),
   )
   const sd = num(
     firstMatch(text, [
-      /standard deviation of\s*\$?\s*([\d,]+)/i,
-      /σ\s*=\s*\$?\s*([\d,]+)/i,
+      /standard deviation of\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /σ\s*=\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
     ]),
   )
   const n = num(
-    firstMatch(text, [/sample of\s+(\d+)/i, /\bn\s*=\s*(\d+)/i, /(\d+)\s+apartments/i]),
+    firstMatch(text, [
+      /first\s+(\d+)\s+(?:fish|items|observations|customers|units)/i,
+      /sample of\s+(\d+)/i,
+      /\bn\s*=\s*(\d+)/i,
+      /(\d+)\s+apartments/i,
+    ]),
   )
   const N = num(
     firstMatch(text, [/with\s+([\d,]+)\s+units/i, /population[^.]*?([\d,]+)/i, /\bN\s*=\s*([\d,]+)/i]),
   )
-  const value = num(
+
+  // Direct mean threshold, or total-of-n threshold → convert to x̄ threshold
+  const meanThreshold = num(
     firstMatch(text, [
-      /greater than\s*\$?\s*([\d,]+)/i,
-      />\s*\$?\s*([\d,]+)/i,
-      /mean greater than\s*\$?\s*([\d,]+)/i,
+      /mean greater than\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /average greater than\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /x(?:bar|̄)?\s*>\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+    ]),
+  )
+  const totalThreshold = num(
+    firstMatch(text, [
+      /in total[^.]*?more than\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /total(?:\s+weight)?\s+(?:of\s+more than\s+|greater than\s+|more than\s+)\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /weigh more than\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /weigh(?:ing)?\s+more than\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+    ]),
+  )
+  const plainGreater = num(
+    firstMatch(text, [
+      /greater than\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      />\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
     ]),
   )
 
@@ -754,7 +788,27 @@ function parseSampleMean(text: string): Record<string, string | number | boolean
     values.N = N
     if (n !== undefined && n > N / 20) values.useFpc = true
   }
-  if (value !== undefined) values.value = value
+
+  if (meanThreshold !== undefined) {
+    values.value = meanThreshold
+    values.query = 'greater'
+  } else if (
+    totalThreshold !== undefined &&
+    n !== undefined &&
+    n > 0 &&
+    /weigh|weight|total/i.test(text)
+  ) {
+    // P(sum > T) for n i.i.d. = P(x̄ > T/n)
+    values.value = totalThreshold / n
+    values.query = 'greater'
+  } else if (plainGreater !== undefined) {
+    values.value = plainGreater
+    values.query = 'greater'
+  }
+
+  if (/less than|weigh less/i.test(text) && !/more than|greater than/i.test(text)) {
+    values.query = 'less'
+  }
 
   return values
 }
@@ -1008,7 +1062,7 @@ export function pickBestPart(parts: ParsedPart[], text: string): ParsedPart {
   if (parts.length === 1) return parts[0]
   const norm = normalize(text)
 
-  const letters = [...text.matchAll(/(?:^|\n|\s)([a-d])[\.)]\s+/gi)].map((m) =>
+  const letters = [...text.matchAll(/(?:^|\n|\s)([a-e])[\.)]\s+/gi)].map((m) =>
     m[1].toUpperCase(),
   )
   // Only one lettered question in the paste → that part
@@ -1088,7 +1142,7 @@ function splitComparisonParts(text: string): { label: string; body: string }[] {
   // Prefer lettered parts: a. ... b. ...
   const lettered = [
     ...text.matchAll(
-      /(?:^|\n|\s)([a-d])[\.)]\s*([\s\S]*?)(?=(?:^|\n|\s)[a-d][\.)]\s*|$)/gi,
+      /(?:^|\n|\s)([a-e])[\.)]\s*([\s\S]*?)(?=(?:^|\n|\s)[a-e][\.)]\s*|$)/gi,
     ),
   ]
   if (lettered.length >= 2) {
@@ -1125,6 +1179,12 @@ function splitComparisonParts(text: string): { label: string; body: string }[] {
 
 function rationaleFor(solverId: SolverId, snippet: string): string {
   const t = snippet.toLowerCase()
+  if (solverId === 'sample-mean') {
+    if (/weigh|weight|total/.test(t)) {
+      return 'n i.i.d. continuous measurements (weights) with known μ,σ → sampling distribution of the mean (CLT). P(sum > T) = P(x̄ > T/n).'
+    }
+    return 'Probability about a sample mean with known σ → Normal sampling distribution of x̄ (CLT).'
+  }
   if (solverId === 'poisson') {
     if (/on average|desks?|hoteling/.test(t)) {
       return 'Mean count of arrivals/demand is given (no fixed n×p setup) → discrete Poisson. “Problem” means demand exceeds desk capacity.'
@@ -1153,11 +1213,19 @@ function buildPart(
   partBody: string,
 ): ParsedPart | null {
   const combined = `${sharedContext}\n${partBody}`
-  // Prefer cues in the part itself (so shared rate language doesn't override a binomial part)
+  // Prefer cues in the part itself (so shared rate language doesn't override a weight/CLT part)
   const local = detectSolver(partBody)
   const overall = detectSolver(combined)
-  const detected =
+  let detected =
     local && local.score >= 4 ? local : overall ?? local
+  if (
+    local &&
+    overall &&
+    local.family !== overall.family &&
+    local.score >= 3
+  ) {
+    detected = local
+  }
   if (!detected) return null
   const values = PARSERS[detected.solverId](combined)
   return {
@@ -1181,17 +1249,43 @@ export function parseProblemText(raw: string): ParseResult | null {
   const text = raw.trim()
   if (text.length < 12) return null
 
-  // 1) Fingerprint match against MMA practice training corpus
-  const trained = matchTrainingCase(text)
-  if (trained) return trainingCaseToResult(trained, text)
-
-  // 2) Multi-part comparison (a vs b) via structural split
   const split = splitComparisonParts(text)
+  const trained = matchTrainingCase(text)
+
+  // 1) Lettered a/b/c… split FIRST so mixed-family multipart problems
+  // (e.g. Poisson catch counts + Normal/sample-mean weights) are not swallowed
+  // by a training case that only covers earlier parts.
   if (split.length >= 2) {
     const shared = extractSharedContext(text)
-    const parts = split
+    let parts = split
       .map((p, i) => buildPart(`part-${p.label}-${i}`, p.label, shared, p.body))
       .filter((p): p is ParsedPart => p !== null)
+
+    // Overlay known training-part values when fingerprints match the part body
+    if (trained?.parts?.length) {
+      parts = parts.map((part) => {
+        const letter = part.label.replace(/^part\s+/i, '').trim().toUpperCase()
+        const trainedPart = trained.parts!.find((tp) => {
+          const tl = tp.label.replace(/^part\s+/i, '').trim().toUpperCase()
+          return tl === letter || tl === part.label.toUpperCase()
+        })
+        if (!trainedPart) return part
+        const fps = (trainedPart.fingerprints ?? []).map((f) => normalize(f))
+        const bodyNorm = normalize(part.label + ' ' + (part.rationale || '') + ' ' + split.find((s) => s.label.toUpperCase() === letter)?.body)
+        const hits = fps.filter((fp) => fp && bodyNorm.includes(fp)).length
+        const need = Math.max(1, Math.ceil(fps.length * 0.5))
+        if (fps.length && hits >= need) {
+          return {
+            ...part,
+            solverId: trainedPart.solverId,
+            values: { ...trainedPart.values },
+            rationale: trainedPart.rationale,
+            fingerprints: trainedPart.fingerprints,
+          }
+        }
+        return part
+      })
+    }
 
     if (parts.length >= 2) {
       const primary = pickBestPart(parts, text)
@@ -1212,6 +1306,25 @@ export function parseProblemText(raw: string): ParseResult | null {
         notes: parts.map((p) => `${p.label}: ${p.rationale}`),
         parts,
       }
+    }
+  }
+
+  // 2) Fingerprint match against MMA practice training corpus (single-focus pastes)
+  // Do not force a catch-count case when the question is clearly about weights/totals.
+  if (trained) {
+    const weightQuestion =
+      /weigh more than|total weight|in total[^.]*?weigh|first\s+\d+\s+fish[^.]*?weigh/i.test(
+        text,
+      )
+    const caseCoversWeights =
+      ['sample-mean', 'normal'].includes(trained.solverId) ||
+      Boolean(
+        trained.parts?.some((p) =>
+          ['sample-mean', 'normal'].includes(p.solverId),
+        ),
+      )
+    if (!(weightQuestion && !caseCoversWeights)) {
+      return trainingCaseToResult(trained, text)
     }
   }
 

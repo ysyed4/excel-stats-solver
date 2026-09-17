@@ -6,6 +6,7 @@ const SOLVER_IDS = SOLVERS.map((s) => s.id)
 function fewShotBlock(): string {
   // Prefer cases that teach hard Poisson scaling + classic MMA discrete splits
   const preferredIds = [
+    'kodiak-halibut-weight-total',
     'kodiak-halibut-each-day',
     'kodiak-halibut-trip',
     'alaska-fish-poisson',
@@ -73,6 +74,12 @@ CRITICAL — Poisson rate scaling vs independent days:
   Kodiak (b): lambda=18, hours=1, independentDays=4, query=atLeast, x=15
   → Excel =(1-POISSON.DIST(14,18,TRUE))^4
 - Interval multiplier scales the RATE; independentDays raises the PROBABILITY. Never use hours=4 for “each of four days”.
+
+CRITICAL — Mixed-family multipart problems (e.g. Kodiak a/b/c):
+- Catch-count parts → poisson. Weight/measurement totals of n items → sample-mean (CLT), NOT poisson.
+- “First 30 fish … weigh more than 1,300 lbs in total” → sample-mean with mean=40, sd=10, n=30,
+  value = 1300/30 ≈ 43.333, query=greater. Excel: 1−NORM.DIST(43.333,40,10/SQRT(30),TRUE).
+- Always return a parts[] entry for every lettered question (a/b/c…), even when solvers differ.
 
 Return ONLY valid JSON (no markdown fences):
 {
