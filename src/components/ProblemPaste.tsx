@@ -25,8 +25,15 @@ function summarizeValues(
     'p',
     'query',
     'x',
+    'successes',
+    'xbar',
     'mean',
     'sd',
+    's',
+    'value',
+    'lower',
+    'upper',
+    'confidence',
   ]
   const bits = keys
     .filter((k) => values[k] !== undefined && values[k] !== '')

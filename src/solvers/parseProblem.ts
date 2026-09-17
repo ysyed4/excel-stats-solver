@@ -185,13 +185,24 @@ function scoreSampleProportion(text: string): number {
 
 function scoreCi(text: string): SolverId | null {
   const t = text.toLowerCase()
+  // Sample-size planning uses “95% confidence” too — never treat those as CIs
   if (
-    !/confidence interval|construct (a |an )?\d|%\s*c\.?i/.test(t) &&
-    !/95%\s*confidence|98%\s*confidence/.test(t)
+    /how large|sample size|required n|sample would (?:you |i )?need|sample need to be|within approximately/i.test(
+      t,
+    )
   ) {
     return null
   }
-  if (/proportion|successes|out of|of which/.test(t)) return 'ci-proportion'
+  if (
+    !/confidence interval|construct (?:a |an |the )?\d+\s*%\s*confidence|%\s*c\.?i|construct .{0,40}interval/.test(
+      t,
+    )
+  ) {
+    return null
+  }
+  if (/proportion|successes|out of|of which|under-?filled|high-priced/.test(t)) {
+    return 'ci-proportion'
+  }
   if (/sample standard deviation|\bs\s*=|unknown σ|t-?distribution|t\.inv/.test(t)) {
     return 'ci-mean-t'
   }
@@ -200,19 +211,35 @@ function scoreCi(text: string): SolverId | null {
 
 function scoreSampleSize(text: string): SolverId | null {
   const t = text.toLowerCase()
-  if (!/sample size|how large (a |the )?sample|required n|how large would the sample/.test(t)) {
+  if (
+    !/sample size|how large (a |the )?sample|required n|how large would the sample|sample would (?:you |i )?(?:require|need)|estimate within approximately|within approximately\s*\$/.test(
+      t,
+    )
+  ) {
     return null
   }
-  if (/proportion|p̂|percent|high-priced|pilot/.test(t)) return 'n-proportion'
+  // Proportion sample-size: pilot % / high-priced / “be conservative”
+  if (
+    /proportion|p̂|high-priced|pilot|conservative|within\s+0\.\d+|within\s+\d+(?:\.\d+)?\s*%/.test(
+      t,
+    ) && !/standard deviation|σ\s*=/.test(t)
+  ) {
+    return 'n-proportion'
+  }
+  if (/standard deviation|σ\s*=|σ of/.test(t) || /within approximately\s*\$/.test(t)) {
+    return 'n-mean'
+  }
+  if (/proportion|p̂|percent|high-priced|pilot|conservative/.test(t)) return 'n-proportion'
   return 'n-mean'
 }
 
 function detectSolver(text: string): { solverId: SolverId; score: number; family: ParseResult['family'] } | null {
+  // Sample-size questions mention “95% confidence” — check before CI routing
+  const nReq = scoreSampleSize(text)
+  if (nReq) return { solverId: nReq, score: 12, family: 'sampling' }
+
   const ci = scoreCi(text)
   if (ci) return { solverId: ci, score: 10, family: 'sampling' }
-
-  const nReq = scoreSampleSize(text)
-  if (nReq) return { solverId: nReq, score: 10, family: 'sampling' }
 
   const scores: { id: SolverId; score: number; family: ParseResult['family'] }[] = [
     { id: 'poisson', score: scorePoisson(text), family: 'discrete' },
@@ -1053,10 +1080,7 @@ function parseSampleMean(text: string): Record<string, string | number | boolean
 
 function parseSampleProportion(text: string): Record<string, string | number | boolean> {
   const values: Record<string, string | number | boolean> = {
-    p: 0.2,
-    n: 30,
     query: 'greater',
-    value: 0.25,
   }
 
   const p = num(
@@ -1084,30 +1108,40 @@ function parseSampleProportion(text: string): Record<string, string | number | b
 }
 
 function parseCiMeanZ(text: string): Record<string, string | number | boolean> {
-  const values: Record<string, string | number | boolean> = {
-    xbar: 2100,
-    sd: 240,
-    n: 36,
-    confidence: 0.95,
-  }
+  // No apartment stubs (x̄=2100) — only fields found in text.
+  const values: Record<string, string | number | boolean> = {}
 
   const xbar = num(
     firstMatch(text, [
       /x[̄bar-]+\s*=\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
       /average is found to be\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /average\s+(?:is\s+)?found to be\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /(?:sample\s+)?average\s+(?:of|is|=)\s*\$?\s*([\d,]+(?:\.\d+)?)\s*(?:ml|kg|lbs?|units?)?/i,
+      /found to be\s*([\d,]+(?:\.\d+)?)\s*ml\b/i,
       /find x-?bar\s*=\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
-      /sample mean[^.]*?\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /sample mean\s*(?:is|=|:)?\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
     ]),
   )
   const sd = num(
     firstMatch(text, [
-      /standard deviation of\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /standard deviation of(?:\s+[\w'-]+){0,6}\s+is\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /standard deviation(?:\s+of)?\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
       /σ\s*=\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
     ]),
   )
-  const n = num(firstMatch(text, [/sample of\s+(\d+)/i, /\bn\s*=\s*(\d+)/i]))
+  const n = num(
+    firstMatch(text, [
+      /sample of\s+(\d+)/i,
+      /\bn\s*=\s*(\d+)/i,
+      /sample\s+of\s+(\d+)\s+is taken/i,
+    ]),
+  )
   const conf = num(
-    firstMatch(text, [/(\d+(?:\.\d+)?)\s*%\s*confidence/i, /(\d+(?:\.\d+)?)\s*%\s*c\.?i/i]),
+    firstMatch(text, [
+      /(\d+(?:\.\d+)?)\s*%\s*confidence/i,
+      /(\d+(?:\.\d+)?)\s*%\s*c\.?i/i,
+      /construct(?:\s+the)?\s+(\d+(?:\.\d+)?)\s*%/i,
+    ]),
   )
 
   if (xbar !== undefined) values.xbar = xbar
@@ -1123,6 +1157,7 @@ function parseCiMeanT(text: string): Record<string, string | number | boolean> {
   const s = num(
     firstMatch(text, [
       /sample standard deviation of\s*([\d,]+(?:\.\d+)?)/i,
+      /standard deviation of(?:\s+[\w'-]+){0,6}\s+is\s*([\d,]+(?:\.\d+)?)/i,
       /\bs\s*=\s*([\d,]+(?:\.\d+)?)/i,
     ]),
   )
@@ -1133,13 +1168,12 @@ function parseCiMeanT(text: string): Record<string, string | number | boolean> {
 }
 
 function parseCiProportion(text: string): Record<string, string | number | boolean> {
-  const values: Record<string, string | number | boolean> = {
-    successes: 12,
-    n: 50,
-    confidence: 0.95,
-  }
+  const values: Record<string, string | number | boolean> = {}
 
-  const pair = text.match(/(\d+)\s+of\s+(?:which\s+)?(\d+)/i) || text.match(/(\d+)\s+of\s+(\d+)/i)
+  const pair =
+    text.match(/(\d+)\s+of\s+(?:which\s+)?(\d+)/i) ||
+    text.match(/(\d+)\s+of\s+(\d+)/i) ||
+    text.match(/(\d+)\s+out\s+of\s+(\d+)/i)
   if (pair) {
     const a = Number(pair[1])
     const b = Number(pair[2])
@@ -1152,6 +1186,30 @@ function parseCiProportion(text: string): Record<string, string | number | boole
     }
   }
 
+  // “sample of 100 … 78 of them were found / under-filled”
+  if (values.n === undefined) {
+    const n = num(
+      firstMatch(text, [
+        /sample of\s+(\d+)/i,
+        /(\d+)\s+were taken/i,
+        /\bn\s*=\s*(\d+)/i,
+      ]),
+    )
+    if (n !== undefined) values.n = n
+  }
+  if (values.successes === undefined) {
+    const successes = num(
+      firstMatch(text, [
+        /(\d+)\s+of them\b/i,
+        /(\d+)\s+(?:were|are)\s+found/i,
+        /(\d+)\s+(?:were|are)\s+under-?filled/i,
+        /(\d+)\s+under-?filled/i,
+        /(\d+)\s+successes?/i,
+      ]),
+    )
+    if (successes !== undefined) values.successes = successes
+  }
+
   const conf = num(text.match(/(\d+(?:\.\d+)?)\s*%\s*confidence/i))
   if (conf !== undefined) values.confidence = pctToProb(conf)
 
@@ -1159,26 +1217,29 @@ function parseCiProportion(text: string): Record<string, string | number | boole
 }
 
 function parseNMean(text: string): Record<string, string | number | boolean> {
-  const values: Record<string, string | number | boolean> = {
-    sd: 240,
-    E: 100,
-    confidence: 0.95,
-  }
+  const values: Record<string, string | number | boolean> = {}
 
   const sd = num(
     firstMatch(text, [
-      /standard deviation of\s*\$?\s*([\d,]+)/i,
-      /σ\s*=\s*\$?\s*([\d,]+)/i,
+      /standard deviation of\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /standard deviation\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /σ\s*(?:of|=)\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
     ]),
   )
   const E = num(
     firstMatch(text, [
-      /within\s*(?:approximately\s*)?\$?\s*([\d,]+)/i,
-      /margin[^.]*?\$?\s*([\d,]+)/i,
-      /\bE\s*=\s*\$?\s*([\d,]+)/i,
+      /within\s*(?:approximately\s*)?\$\s*([\d,]+(?:\.\d+)?)/i,
+      /within\s*(?:approximately\s*)?([\d,]+(?:\.\d+)?)\s+of\s+(?:the\s+)?(?:actual\s+)?(?:figure|mean|value)/i,
+      /margin(?:\s+of\s+error)?[^.]*?\$?\s*([\d,]+(?:\.\d+)?)/i,
+      /\bE\s*=\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
     ]),
   )
-  const conf = num(text.match(/(\d+(?:\.\d+)?)\s*%\s*confidence/i))
+  const conf = num(
+    firstMatch(text, [
+      /(\d+(?:\.\d+)?)\s*%\s*confidence/i,
+      /confidence\s+level\s+of\s+(\d+(?:\.\d+)?)\s*%/i,
+    ]),
+  )
 
   if (sd !== undefined) values.sd = sd
   if (E !== undefined) values.E = E
@@ -1189,30 +1250,40 @@ function parseNMean(text: string): Record<string, string | number | boolean> {
 
 function parseNProportion(text: string): Record<string, string | number | boolean> {
   const values: Record<string, string | number | boolean> = {
-    p: 0.1,
-    E: 0.05,
-    confidence: 0.95,
-    conservative: /conservative|p\s*=\s*0\.5/i.test(text),
+    conservative: /conservative|p\s*=\s*0\.5|be conservative/i.test(text),
   }
 
   const p = num(
     firstMatch(text, [
       /(\d+(?:\.\d+)?)\s*%\s*of apartments/i,
+      /previous study suggests that\s+(\d+(?:\.\d+)?)\s*%/i,
       /pilot[^.]*?(\d+(?:\.\d+)?)\s*%/i,
+      /(\d+(?:\.\d+)?)\s*%\s*(?:are|of)\s+high-priced/i,
       /\bp\s*=\s*(\d+(?:\.\d+)?)/i,
     ]),
   )
   const E = num(
     firstMatch(text, [
-      /within\s+(\d+(?:\.\d+)?)/i,
+      /within\s+(0\.\d+)/i,
+      /within\s+(\d+(?:\.\d+)?)\s*%/i,
+      /within\s+(\d+(?:\.\d+)?)\s+of\s+(?:the\s+)?actual/i,
       /\bE\s*=\s*(\d+(?:\.\d+)?)/i,
     ]),
   )
-  const conf = num(text.match(/(\d+(?:\.\d+)?)\s*%\s*confidence/i))
+  const conf = num(
+    firstMatch(text, [
+      /(\d+(?:\.\d+)?)\s*%\s*confidence/i,
+      /confidence\s+level\s+of\s+(\d+(?:\.\d+)?)\s*%/i,
+    ]),
+  )
 
   if (p !== undefined) values.p = pctToProb(p)
   if (E !== undefined) values.E = E > 1 ? E / 100 : E
   if (conf !== undefined) values.confidence = pctToProb(conf)
+  // Conservative path: ignore pilot p
+  if (values.conservative) {
+    values.p = 0.5
+  }
 
   return values
 }

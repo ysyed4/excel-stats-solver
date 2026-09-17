@@ -69,7 +69,18 @@ Decision rules (MMA distribution tree):
   · Small N with n>N/20 → useFpc=true and N set
 - Sample proportion probabilities → sample-proportion
 - CI for mean known σ → ci-mean-z; unknown σ → ci-mean-t; proportion → ci-proportion
+  · Always set xbar from the SAMPLE average (e.g. “average is found to be 995”), never
+    from a target/spec level (e.g. “supposed to fill … 1,000 ml”) and never leave xbar
+    to a prior example default like 2100
+  · Paint fill: xbar=995, sd=21, n=49, confidence=0.95 → CI [989.12, 1000.88]
+  · Proportion CI fields: successes (NOT x), n, confidence. “78 of them under-filled”
+    out of sample of 100 → successes=78, n=100, confidence=0.95
 - Required sample size → n-mean or n-proportion
+  · “How large a sample … within approximately $E … confidence” + known σ → n-mean
+    (σ, E, confidence). Example: σ=240, E=100, 95% → n = CEILING((z*σ/E)^2) = 23;
+    E=50 → n = 89. Do NOT route these to ci-mean-z (no x̄ is given).
+  · Proportion sample size with pilot % → n-proportion (p from pilot, E, confidence);
+    “be conservative” → conservative=true (p=0.5)
 
 Query conventions:
 - binomial/poisson: equal | atMost | atLeast | moreThan

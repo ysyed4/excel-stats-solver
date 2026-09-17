@@ -565,4 +565,110 @@ export const TRAINING_CASES: TrainingCase[] = [
       'Within 2 of μ → lower=48, upper=52. SE=4/√25=0.8; P via NORM.DIST difference.',
     source: 'Synthetic within-of-mean regression',
   },
+  {
+    id: 'paint-ci-known-sigma',
+    title: 'Paint fill machine · CI σ known',
+    fingerprints: [
+      'paint',
+      'containers',
+      '1,000 ml',
+      '1000 ml',
+      'fill rate is 21',
+      'average is found to be 995',
+      'sample of 49',
+    ],
+    prompt:
+      'Paint machine supposed to fill 1000 ml, σ=21 known. Sample of 49, average found to be 995. Construct 95% CI for μ.',
+    solverId: 'ci-mean-z',
+    values: { xbar: 995, sd: 21, n: 49, confidence: 0.95 },
+    rationale:
+      'x̄=995 (not the 1000 target), σ=21, n=49. CI = x̄ ± NORM.S.INV(0.975)·21/√49.',
+    source: 'User practice / paint fill machine',
+  },
+  {
+    id: 'paint-ci-proportion',
+    title: 'Paint fill · under-filled proportion CI',
+    fingerprints: [
+      'under-filled',
+      'underfilled',
+      '78 of them',
+      'sample of 100',
+      'proportion of those',
+    ],
+    prompt:
+      'Paint fill machine. Sample of 100, 78 under-filled. 95% CI for the under-filled proportion.',
+    solverId: 'ci-proportion',
+    values: { successes: 78, n: 100, confidence: 0.95 },
+    rationale:
+      'p̂=78/100=0.78. CI = p̂ ± NORM.S.INV(0.975)·√(p̂(1−p̂)/n). Field is successes (not x).',
+    source: 'User practice / paint fill machine part b',
+  },
+  {
+    id: 'apartment-n-mean',
+    title: 'Apartment rents · required sample size (mean)',
+    fingerprints: [
+      'how large a sample would you require',
+      'within approximately',
+      'actual figure',
+      'standard deviation of $240',
+      'nor is the mean known',
+    ],
+    prompt:
+      'Apartment prices sd $240, mean unknown. (a) Sample size for estimate within ~$100 at 95%? (b) Within ~$50 at 95%?',
+    solverId: 'n-mean',
+    values: { sd: 240, E: 100, confidence: 0.95 },
+    rationale:
+      'n = CEILING((z* σ / E)^2). E=100 → n=23; E=50 → n=89. Not a CI (no x̄).',
+    parts: [
+      {
+        label: 'Part A',
+        solverId: 'n-mean',
+        values: { sd: 240, E: 100, confidence: 0.95 },
+        rationale: 'E=100, σ=240, 95% → n=23.',
+        fingerprints: ['within approximately $100', 'within approximately $100'],
+      },
+      {
+        label: 'Part B',
+        solverId: 'n-mean',
+        values: { sd: 240, E: 50, confidence: 0.95 },
+        rationale: 'E=50, σ=240, 95% → n=89.',
+        fingerprints: ['within approximately $50'],
+      },
+    ],
+    source: 'MMA 863 Statistics Review · Estimating n for Means',
+  },
+  {
+    id: 'toronto-n-proportion',
+    title: 'Toronto high-priced · required sample size (proportion)',
+    fingerprints: [
+      'how large a sample would you need',
+      'within 0.05 of the actual value',
+      'previous study suggests that 10%',
+      'be conservative',
+      'high-priced',
+    ],
+    prompt:
+      'Toronto high-priced apartments; pilot 10%. (a) Sample size within 0.05 at 95% using pilot? (b) Conservative p=0.5?',
+    solverId: 'n-proportion',
+    values: { p: 0.1, E: 0.05, confidence: 0.95, conservative: false },
+    rationale:
+      'Pilot: n=CEILING(z²p(1−p)/E²). Conservative uses p=0.5.',
+    parts: [
+      {
+        label: 'Part A',
+        solverId: 'n-proportion',
+        values: { p: 0.1, E: 0.05, confidence: 0.95, conservative: false },
+        rationale: 'Pilot p=0.1.',
+        fingerprints: ['pilot study', 'previous study', 'treat the previous'],
+      },
+      {
+        label: 'Part B',
+        solverId: 'n-proportion',
+        values: { p: 0.5, E: 0.05, confidence: 0.95, conservative: true },
+        rationale: 'Conservative p=0.5.',
+        fingerprints: ['be conservative', 'conservative'],
+      },
+    ],
+    source: 'MMA 863 Statistics Review · Estimating n for Proportions',
+  },
 ]

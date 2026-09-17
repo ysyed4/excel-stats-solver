@@ -410,23 +410,26 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
         <div className="form-grid">
           <Field label="Sample mean x̄">
             <NumberInput
-              value={v('xbar', '2100')}
+              value={v('xbar')}
               onChange={(x) => onChange('xbar', x)}
+              placeholder="sample mean"
             />
           </Field>
           <Field label="Known σ">
             <NumberInput
-              value={v('sd', '240')}
+              value={v('sd')}
               onChange={(x) => onChange('sd', x)}
+              placeholder="σ"
             />
           </Field>
           <Field label="n">
-            <NumberInput value={v('n', '36')} onChange={(x) => onChange('n', x)} />
+            <NumberInput value={v('n')} onChange={(x) => onChange('n', x)} placeholder="n" />
           </Field>
           <Field label="Confidence" hint="e.g. 0.95">
             <NumberInput
-              value={v('confidence', '0.95')}
+              value={v('confidence')}
               onChange={(x) => onChange('confidence', x)}
+              placeholder="0.95"
             />
           </Field>
         </div>
@@ -437,20 +440,26 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
         <div className="form-grid">
           <Field label="Sample mean x̄">
             <NumberInput
-              value={v('xbar', '995')}
+              value={v('xbar')}
               onChange={(x) => onChange('xbar', x)}
+              placeholder="sample mean"
             />
           </Field>
           <Field label="Sample sd s">
-            <NumberInput value={v('s', '21')} onChange={(x) => onChange('s', x)} />
+            <NumberInput
+              value={v('s')}
+              onChange={(x) => onChange('s', x)}
+              placeholder="s"
+            />
           </Field>
           <Field label="n">
-            <NumberInput value={v('n', '49')} onChange={(x) => onChange('n', x)} />
+            <NumberInput value={v('n')} onChange={(x) => onChange('n', x)} placeholder="n" />
           </Field>
           <Field label="Confidence">
             <NumberInput
-              value={v('confidence', '0.95')}
+              value={v('confidence')}
               onChange={(x) => onChange('confidence', x)}
+              placeholder="0.95"
             />
           </Field>
         </div>
@@ -461,17 +470,19 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
         <div className="form-grid">
           <Field label="Successes">
             <NumberInput
-              value={v('successes', '12')}
+              value={v('successes')}
               onChange={(x) => onChange('successes', x)}
+              placeholder="count"
             />
           </Field>
           <Field label="n">
-            <NumberInput value={v('n', '50')} onChange={(x) => onChange('n', x)} />
+            <NumberInput value={v('n')} onChange={(x) => onChange('n', x)} placeholder="n" />
           </Field>
           <Field label="Confidence">
             <NumberInput
-              value={v('confidence', '0.95')}
+              value={v('confidence')}
               onChange={(x) => onChange('confidence', x)}
+              placeholder="0.95"
             />
           </Field>
         </div>
@@ -482,17 +493,23 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
         <div className="form-grid">
           <Field label="σ">
             <NumberInput
-              value={v('sd', '240')}
+              value={v('sd')}
               onChange={(x) => onChange('sd', x)}
+              placeholder="σ"
             />
           </Field>
           <Field label="Desired margin E">
-            <NumberInput value={v('E', '100')} onChange={(x) => onChange('E', x)} />
+            <NumberInput
+              value={v('E')}
+              onChange={(x) => onChange('E', x)}
+              placeholder="e.g. 100"
+            />
           </Field>
           <Field label="Confidence">
             <NumberInput
-              value={v('confidence', '0.95')}
+              value={v('confidence')}
               onChange={(x) => onChange('confidence', x)}
+              placeholder="0.95"
             />
           </Field>
         </div>
