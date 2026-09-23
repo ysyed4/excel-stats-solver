@@ -15,7 +15,9 @@
     "test:n-size": "npx --yes tsx src/solvers/nSize.test.ts",
     "test:uniform": "npx --yes tsx src/solvers/uniformQuery.test.ts",
     "test:poisson-thin": "npx --yes tsx src/solvers/poissonThinning.test.ts",
-    "test:local": "npm run test:ontario && npm run test:apartment && npm run test:toronto && npm run test:paint-ci && npm run test:stale && npm run test:n-size && npm run test:uniform && npm run test:poisson-thin"
+    "test:percentile": "npx --yes tsx src/solvers/percentileQuery.test.ts",
+    "test:normal-inv": "npx --yes tsx src/solvers/normalInvBetween.test.ts",
+    "test:local": "npm run test:ontario && npm run test:apartment && npm run test:toronto && npm run test:paint-ci && npm run test:stale && npm run test:n-size && npm run test:uniform && npm run test:poisson-thin && npm run test:percentile && npm run test:normal-inv"
   },
   "dependencies": {
     "jstat": "^1.9.6",

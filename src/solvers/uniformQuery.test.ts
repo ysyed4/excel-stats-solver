@@ -63,6 +63,35 @@ function main() {
   }
   console.log('OK [empty-query message]')
 
+  // Independent draws: Uniform(5,15), P(Y < 8) = 0.3 per draw
+  // both of 2 < 8 → 0.09; P(Y > 14) = 0.1 → at least one of 2 → 1 − 0.9² = 0.19
+  const both = solve('uniform', {
+    a: 5,
+    b: 15,
+    lower: 5,
+    upper: 8,
+    drawCount: 2,
+  })
+  const bothLine = both.lines.find((l) => /All 2 draws/.test(l.label))
+  if (!bothLine) throw new Error(`missing all-draws line: ${JSON.stringify(both.lines)}`)
+  assertClose('both draws < 8', Number(bothLine.value), 0.09)
+  console.log('OK [both draws]', bothLine.value)
+
+  const atLeastOne = solve('uniform', {
+    a: 5,
+    b: 15,
+    lower: '',
+    upper: '',
+    atLeast: 14,
+    drawCount: 2,
+  })
+  const aloLine = atLeastOne.lines.find((l) => /At least one of 2/.test(l.label))
+  if (!aloLine) {
+    throw new Error(`missing at-least-one line: ${JSON.stringify(atLeastOne.lines)}`)
+  }
+  assertClose('at least one > 14', Number(aloLine.value), 0.19)
+  console.log('OK [at least one draw]', aloLine.value)
+
   console.log('All uniform query-mode checks passed.')
 }
 

@@ -36,10 +36,11 @@ const FIELD_LABELS: Record<string, string> = {
   b: 'Maximum b',
   atLeast: 'Optional P(X ≥ …)',
   exact: 'Optional exact point',
-  probability: 'Probability',
+  probability: 'Target probability p',
   alpha: 'α',
   t: 't',
   df: 'Degrees of freedom',
+  drawCount: 'Independent draws',
   xbar: 'Sample mean x̄',
   s: 'Sample s',
   successes: 'Successes',
@@ -137,10 +138,7 @@ export function solve(solverId: SolverId, values: Record<string, unknown>): Solv
 function solveBinomial(values: Record<string, unknown>): SolveResult {
   const n = num(values, 'n')
   const p = num(values, 'p')
-  const x = num(values, 'x')
   const query = str(values, 'query', 'atLeast')
-  const hasExact = values.x2 !== undefined && values.x2 !== ''
-  const x2 = hasExact ? num(values, 'x2') : undefined
 
   const baseSteps: WalkthroughStep[] = [
     step(
@@ -160,6 +158,107 @@ function solveBinomial(values: Record<string, unknown>): SolveResult {
       },
     ),
   ]
+
+  // Largest integer x with P(X ≤ x) ≤ target (discrete percentile / inverse CDF)
+  if (query === 'percentile') {
+    const target = num(values, 'probability')
+    if (!(target > 0 && target < 1)) {
+      throw new Error('Target probability p must be strictly between 0 and 1.')
+    }
+    let xStar = 0
+    let cdf = BINOM_DIST(0, n, p, true)
+    let exceededAtZero = false
+    if (cdf > target) {
+      exceededAtZero = true
+      xStar = 0
+    } else {
+      for (let x = 1; x <= n; x++) {
+        const next = BINOM_DIST(x, n, p, true)
+        if (next > target) break
+        xStar = x
+        cdf = next
+      }
+    }
+    const cdfNext = xStar < n ? BINOM_DIST(xStar + 1, n, p, true) : 1
+    const excel = formatExcelCall('BINOM.DIST', [xStar, n, p, true])
+    const excelNext =
+      xStar < n
+        ? formatExcelCall('BINOM.DIST', [xStar + 1, n, p, true])
+        : undefined
+    return {
+      excelCalls: [excel, ...(excelNext ? [excelNext] : [])],
+      lines: [
+        {
+          label: `Largest x with P(X ≤ x) ≤ ${target}`,
+          value: String(xStar),
+          emphasis: true,
+        },
+        { label: `P(X ≤ ${xStar})`, value: fmt(cdf) },
+        ...(xStar < n
+          ? [{ label: `P(X ≤ ${xStar + 1})`, value: fmt(cdfNext) }]
+          : []),
+      ],
+      note: exceededAtZero
+        ? `P(X ≤ 0) = ${fmt(cdf)} already exceeds the target ${target}; reporting x = 0.`
+        : `P(X ≤ ${xStar}) = ${fmt(cdf)} ≤ ${target}, but P(X ≤ ${xStar + 1}) = ${fmt(cdfNext)} > ${target}.`,
+      walkthrough: {
+        title: 'Binomial · discrete percentile (inverse CDF)',
+        distribution: `X ~ Binomial(n = ${n}, p = ${p})`,
+        find: `Largest integer x with P(X ≤ x) ≤ ${target}`,
+        diagram: {
+          kind: 'number-line',
+          min: 0,
+          max: n,
+          marks: [
+            { value: 0, label: '0' },
+            { value: xStar, label: String(xStar) },
+            { value: n, label: String(n) },
+          ],
+          highlightFrom: 0,
+          highlightTo: xStar,
+          caption: `Search left-tail CDF until it would exceed ${target}`,
+        },
+        steps: [
+          ...baseSteps,
+          step(
+            3,
+            'Identify what to find',
+            `Largest x such that BINOM.DIST(x, ${n}, ${p}, TRUE) ≤ ${target}.`,
+          ),
+          step(
+            4,
+            'Draw a diagram',
+            'Walk the discrete number line, checking the cumulative probability at each integer.',
+          ),
+          step(
+            5,
+            'Translate for Excel',
+            `Search x = 0, 1, … while BINOM.DIST(x, n, p, TRUE) ≤ ${target}; stop at the last success.`,
+            { excel: [excel] },
+          ),
+          step(
+            6,
+            'Solve and check',
+            exceededAtZero
+              ? `Even x = 0 exceeds the target (CDF ≈ ${fmt(cdf)}).`
+              : `x = ${xStar}: CDF ≈ ${fmt(cdf)} ≤ ${target}; x = ${xStar + 1}: CDF ≈ ${fmt(cdfNext)} > ${target}.`,
+            {
+              values: [
+                { label: 'x*', value: String(xStar) },
+                { label: `P(X ≤ ${xStar})`, value: fmt(cdf) },
+              ],
+            },
+          ),
+        ],
+        explanation:
+          'This is a discrete inverse-CDF / percentile search: keep the largest x whose left-tail probability does not exceed the target.',
+      },
+    }
+  }
+
+  const x = num(values, 'x')
+  const hasExact = values.x2 !== undefined && values.x2 !== ''
+  const x2 = hasExact ? num(values, 'x2') : undefined
 
   if (query === 'equal') {
     const prob = BINOM_DIST(x, n, p, false)
@@ -441,7 +540,6 @@ function solveBinomial(values: Record<string, unknown>): SolveResult {
 function solvePoisson(values: Record<string, unknown>): SolveResult {
   const lambdaBase = num(values, 'lambda')
   const query = str(values, 'query', 'equal')
-  const x = num(values, 'x')
   const hours =
     values.hours === '' || values.hours === undefined ? 1 : num(values, 'hours')
   const lambda = lambdaBase * hours
@@ -469,6 +567,99 @@ function solvePoisson(values: Record<string, unknown>): SolveResult {
       },
     ),
   ]
+
+  if (query === 'percentile') {
+    const target = num(values, 'probability')
+    if (!(target > 0 && target < 1)) {
+      throw new Error('Target probability p must be strictly between 0 and 1.')
+    }
+    const cap = Math.max(1, Math.ceil(lambda + 10 * Math.sqrt(Math.max(lambda, 1))))
+    let xStar = 0
+    let cdf = POISSON_DIST(0, lambda, true)
+    let exceededAtZero = false
+    if (cdf > target) {
+      exceededAtZero = true
+      xStar = 0
+    } else {
+      for (let x = 1; x <= cap; x++) {
+        const next = POISSON_DIST(x, lambda, true)
+        if (next > target) break
+        xStar = x
+        cdf = next
+      }
+    }
+    const cdfNext = POISSON_DIST(xStar + 1, lambda, true)
+    const excel = formatExcelCall('POISSON.DIST', [xStar, lambda, true])
+    const excelNext = formatExcelCall('POISSON.DIST', [xStar + 1, lambda, true])
+    return {
+      excelCalls: [excel, excelNext],
+      lines: [
+        {
+          label: `Largest x with P(X ≤ x) ≤ ${target}`,
+          value: String(xStar),
+          emphasis: true,
+        },
+        { label: `P(X ≤ ${xStar})`, value: fmt(cdf) },
+        { label: `P(X ≤ ${xStar + 1})`, value: fmt(cdfNext) },
+      ],
+      note: exceededAtZero
+        ? `P(X ≤ 0) = ${fmt(cdf)} already exceeds the target ${target}; reporting x = 0.`
+        : `P(X ≤ ${xStar}) = ${fmt(cdf)} ≤ ${target}, but P(X ≤ ${xStar + 1}) = ${fmt(cdfNext)} > ${target}.`,
+      walkthrough: {
+        title: 'Poisson · discrete percentile (inverse CDF)',
+        distribution: `X ~ Poisson(λ = ${fmt(lambda, 4)})`,
+        find: `Largest integer x with P(X ≤ x) ≤ ${target}`,
+        diagram: {
+          kind: 'number-line',
+          min: 0,
+          max: Math.max(cap, xStar + 3),
+          marks: [
+            { value: 0, label: '0' },
+            { value: xStar, label: String(xStar) },
+          ],
+          highlightFrom: 0,
+          highlightTo: xStar,
+          caption: `Search left-tail CDF until it would exceed ${target}`,
+        },
+        steps: [
+          ...base,
+          step(
+            3,
+            'Identify what to find',
+            `Largest x such that POISSON.DIST(x, λ, TRUE) ≤ ${target}.`,
+          ),
+          step(
+            4,
+            'Draw a diagram',
+            `Walk x = 0, 1, … (cap ≈ λ + 10√λ = ${cap}) checking the CDF.`,
+          ),
+          step(
+            5,
+            'Translate for Excel',
+            `Search while POISSON.DIST(x, ${fmt(lambda, 4)}, TRUE) ≤ ${target}.`,
+            { excel: [excel] },
+          ),
+          step(
+            6,
+            'Solve and check',
+            exceededAtZero
+              ? `Even x = 0 exceeds the target (CDF ≈ ${fmt(cdf)}).`
+              : `x = ${xStar}: CDF ≈ ${fmt(cdf)} ≤ ${target}; x = ${xStar + 1}: CDF ≈ ${fmt(cdfNext)} > ${target}.`,
+            {
+              values: [
+                { label: 'x*', value: String(xStar) },
+                { label: `P(X ≤ ${xStar})`, value: fmt(cdf) },
+              ],
+            },
+          ),
+        ],
+        explanation:
+          'Discrete inverse-CDF search on Poisson: keep the largest x whose left-tail probability does not exceed the target.',
+      },
+    }
+  }
+
+  const x = num(values, 'x')
 
   function withIndependentDays(
     oneDayProb: number,
@@ -681,6 +872,10 @@ function solvePoisson(values: Record<string, unknown>): SolveResult {
 function solveUniform(values: Record<string, unknown>): SolveResult {
   const a = num(values, 'a')
   const b = num(values, 'b')
+  const drawCount =
+    values.drawCount === '' || values.drawCount === undefined
+      ? 1
+      : Math.max(1, Math.round(num(values, 'drawCount')))
 
   // Active query is whichever optional field(s) the user actually filled —
   // never require Between · lower/upper when only P(X ≥ …) or exact is set.
@@ -710,6 +905,29 @@ function solveUniform(values: Record<string, unknown>): SolveResult {
   let betweenText = ''
   let atLeastText = ''
   let exactText = ''
+  let drawsText = ''
+
+  function pushIndependentDraws(labelEvent: string, p: number) {
+    if (drawCount <= 1) return
+    const all = p ** drawCount
+    const atLeastOne = 1 - (1 - p) ** drawCount
+    lines.push({
+      label: `All ${drawCount} draws: (${labelEvent})^${drawCount}`,
+      value: fmt(all),
+      emphasis: true,
+    })
+    lines.push({
+      label: `At least one of ${drawCount}: 1−(1−p)^${drawCount}`,
+      value: fmt(atLeastOne),
+      emphasis: true,
+    })
+    excelCalls.push(`=${fmt(p)}^${drawCount}`, `=1-(1-${fmt(p)})^${drawCount}`)
+    stepValues.push(
+      { label: `p^${drawCount}`, value: fmt(all) },
+      { label: `1−(1−p)^${drawCount}`, value: fmt(atLeastOne) },
+    )
+    drawsText += ` Independent draws n=${drawCount}: all satisfy → p^n = ${fmt(all)}; at least one → 1−(1−p)^n = ${fmt(atLeastOne)}.`
+  }
 
   if (wantBetween) {
     const lower = num(values, 'lower')
@@ -731,6 +949,7 @@ function solveUniform(values: Record<string, unknown>): SolveResult {
     stepValues.push({ label: `P(${lower} ≤ X ≤ ${upper})`, value: fmt(between) })
     findParts.push(`P(${lower} ≤ X ≤ ${upper})`)
     betweenText = `P(${lower} ≤ X ≤ ${upper}) = ${fmt(between)}.`
+    pushIndependentDraws(`P(${lower}≤X≤${upper})`, between)
   }
 
   if (wantAtLeast) {
@@ -742,6 +961,7 @@ function solveUniform(values: Record<string, unknown>): SolveResult {
     stepValues.push({ label: `P(X ≥ ${atLeast})`, value: fmt(p) })
     findParts.push(`P(X ≥ ${atLeast})`)
     atLeastText = ` P(X ≥ ${atLeast}) = (${b} − ${atLeast}) / (${b} − ${a}) = ${fmt(p)}.`
+    pushIndependentDraws(`P(X≥${atLeast})`, p)
   }
 
   if (wantExact) {
@@ -759,11 +979,17 @@ function solveUniform(values: Record<string, unknown>): SolveResult {
   return {
     excelCalls,
     lines,
-    note: 'Continuous uniform: probability is the length of the event interval divided by (b − a). A single point has probability 0.',
+    note:
+      'Continuous uniform: probability is the length of the event interval divided by (b − a). A single point has probability 0.' +
+      (drawCount > 1
+        ? ` For ${drawCount} i.i.d. draws, raise the single-draw probability (or use 1−(1−p)^n for “at least one”).`
+        : ''),
     walkthrough: {
       title: 'Uniform · length ratios',
       distribution: `X ~ Uniform(a = ${a}, b = ${b})`,
-      find: findParts.join('; '),
+      find:
+        findParts.join('; ') +
+        (drawCount > 1 ? ` (${drawCount} independent draws)` : ''),
       diagram: {
         kind: 'uniform-bar',
         a,
@@ -791,18 +1017,24 @@ function solveUniform(values: Record<string, unknown>): SolveResult {
         step(
           5,
           'Translate for Excel / geometry',
-          `Probability = (length of overlap with [a, b]) / (b − a). No special Excel distribution function is required — it is a length ratio.`,
+          `Probability = (length of overlap with [a, b]) / (b − a).` +
+            (drawCount > 1
+              ? ` Independent draws: all → p^${drawCount}; at least one → 1−(1−p)^${drawCount}.`
+              : ''),
           { excel: excelCalls },
         ),
         step(
           6,
           'Solve and check',
-          `${betweenText}${atLeastText}${exactText}`.trim(),
+          `${betweenText}${atLeastText}${exactText}${drawsText}`.trim(),
           { values: stepValues },
         ),
       ],
       explanation:
-        'For Uniform, “draw the rectangle and take the shaded length over total length” is the course method.',
+        'For Uniform, “draw the rectangle and take the shaded length over total length” is the course method.' +
+        (drawCount > 1
+          ? ' Independent identical draws multiply probabilities (or use the complement for “at least one”).'
+          : ''),
     },
   }
 }
@@ -1000,44 +1232,248 @@ function solveNormal(values: Record<string, unknown>): SolveResult {
     }
   }
 
-  const probability = num(values, 'probability')
-  const x = NORM_INV(probability, mean, sd)
-  const excel = formatExcelCall('NORM.INV', [probability, mean, sd])
-  return {
-    excelCalls: [excel],
-    lines: [
-      {
-        label: `x such that P(X ≤ x) = ${probability}`,
-        value: fmt(x, 4),
-        emphasis: true,
-      },
-    ],
-    walkthrough: {
-      title: 'Normal · inverse (quantile)',
-      distribution: `X ~ N(${mean}, ${sd})`,
-      find: `x with P(X ≤ x) = ${probability}`,
-      diagram: {
-        kind: 'normal-shade',
-        mean,
-        sd,
-        shade: 'left',
-        x,
-        caption: `Find x so left-tail area equals ${probability}`,
-      },
-      steps: [
-        ...intro,
-        step(3, 'Identify what to find', `The cutoff x whose left-tail probability is ${probability}.`),
-        step(4, 'Draw a diagram', 'Shade the left area equal to the target probability; read x on the axis.'),
-        step(5, 'Translate for Excel', 'Use NORM.INV for the left-tail quantile.', {
-          excel: [excel],
-        }),
-        step(6, 'Solve and check', `${excel} ≈ ${fmt(x, 4)}.`, {
-          values: [{ label: 'x', value: fmt(x, 4) }],
-        }),
+  // P(? < X < xHigh) = p  → convert via Z, reuse standard-normal inverse-between math
+  if (query === 'invBetweenLow') {
+    const xHigh = num(values, 'upper')
+    const probability = num(values, 'probability')
+    const zHigh = (xHigh - mean) / sd
+    const phiHigh = NORM_S_DIST(zHigh, true)
+    const target = phiHigh - probability
+    if (!(target > 0 && target < 1)) {
+      throw new Error(
+        `Need 0 < Φ(z₂) − p < 1 (got ${fmt(target)}). Check the known upper x and probability.`,
+      )
+    }
+    const zStar = NORM_S_INV(target)
+    const xStar = mean + zStar * sd
+    const excel = `=NORM.INV(NORM.S.DIST((${xHigh}-${mean})/${sd},TRUE)-${probability},${mean},${sd})`
+    return {
+      excelCalls: [excel],
+      lines: [
+        { label: `z₂ = (${xHigh} − ${mean}) / ${sd}`, value: fmt(zHigh, 4) },
+        {
+          label: `x* such that P(x* < X < ${xHigh}) = ${probability}`,
+          value: fmt(xStar, 4),
+          emphasis: true,
+        },
       ],
-      explanation: 'Inverse problems flip the usual CDF lookup: probability in → x out.',
-    },
+      walkthrough: {
+        title: 'Normal · find lower bound in a between probability',
+        distribution: `X ~ N(${mean}, ${sd})`,
+        find: `x* with P(x* < X < ${xHigh}) = ${probability}`,
+        diagram: {
+          kind: 'normal-shade',
+          mean,
+          sd,
+          shade: 'between',
+          lower: xStar,
+          upper: xHigh,
+          caption: `Unknown lower x*; upper = ${xHigh}; shaded area = ${probability}`,
+        },
+        steps: [
+          ...intro,
+          step(
+            3,
+            'Identify what to find',
+            `Standardize: find z* with P(z* < Z < ${fmt(zHigh, 4)}) = ${probability}, then x* = μ + z*σ.`,
+          ),
+          step(4, 'Draw a diagram', `Shade from x* up to ${xHigh}.`),
+          step(
+            5,
+            'Translate for Excel',
+            `z* = NORM.S.INV(NORM.S.DIST(z₂,TRUE) − p); x* = ${mean} + z*·${sd}.`,
+            { excel: [excel] },
+          ),
+          step(6, 'Solve and check', `z* ≈ ${fmt(zStar, 4)} → x* ≈ ${fmt(xStar, 4)}.`, {
+            values: [
+              { label: 'z*', value: fmt(zStar, 4) },
+              { label: 'x*', value: fmt(xStar, 4) },
+            ],
+          }),
+        ],
+        explanation:
+          'Convert the Normal between-problem to Z, invert the CDF, then map back with x = μ + zσ.',
+      },
+    }
   }
+
+  if (query === 'invBetweenHigh') {
+    const xLow = num(values, 'lower')
+    const probability = num(values, 'probability')
+    const zLow = (xLow - mean) / sd
+    const phiLow = NORM_S_DIST(zLow, true)
+    const target = phiLow + probability
+    if (!(target > 0 && target < 1)) {
+      throw new Error(
+        `Need 0 < Φ(z₁) + p < 1 (got ${fmt(target)}). Check the known lower x and probability.`,
+      )
+    }
+    const zStar = NORM_S_INV(target)
+    const xStar = mean + zStar * sd
+    const excel = `=NORM.INV(NORM.S.DIST((${xLow}-${mean})/${sd},TRUE)+${probability},${mean},${sd})`
+    return {
+      excelCalls: [excel],
+      lines: [
+        { label: `z₁ = (${xLow} − ${mean}) / ${sd}`, value: fmt(zLow, 4) },
+        {
+          label: `x* such that P(${xLow} < X < x*) = ${probability}`,
+          value: fmt(xStar, 4),
+          emphasis: true,
+        },
+      ],
+      walkthrough: {
+        title: 'Normal · find upper bound in a between probability',
+        distribution: `X ~ N(${mean}, ${sd})`,
+        find: `x* with P(${xLow} < X < x*) = ${probability}`,
+        diagram: {
+          kind: 'normal-shade',
+          mean,
+          sd,
+          shade: 'between',
+          lower: xLow,
+          upper: xStar,
+          caption: `Lower = ${xLow}; unknown upper x*; shaded area = ${probability}`,
+        },
+        steps: [
+          ...intro,
+          step(
+            3,
+            'Identify what to find',
+            `Standardize: find z* with P(${fmt(zLow, 4)} < Z < z*) = ${probability}, then x* = μ + z*σ.`,
+          ),
+          step(4, 'Draw a diagram', `Shade from ${xLow} up to x*.`),
+          step(
+            5,
+            'Translate for Excel',
+            `z* = NORM.S.INV(NORM.S.DIST(z₁,TRUE) + p); x* = ${mean} + z*·${sd}.`,
+            { excel: [excel] },
+          ),
+          step(6, 'Solve and check', `z* ≈ ${fmt(zStar, 4)} → x* ≈ ${fmt(xStar, 4)}.`, {
+            values: [
+              { label: 'z*', value: fmt(zStar, 4) },
+              { label: 'x*', value: fmt(xStar, 4) },
+            ],
+          }),
+        ],
+        explanation:
+          'Convert the Normal between-problem to Z, invert the CDF, then map back with x = μ + zσ.',
+      },
+    }
+  }
+
+  if (query === 'invBetweenSymmetric') {
+    const probability = num(values, 'probability')
+    if (!(probability > 0 && probability < 1)) {
+      throw new Error('Middle probability p must be strictly between 0 and 1.')
+    }
+    const alphaHalf = (1 - probability) / 2
+    const zLow = NORM_S_INV(alphaHalf)
+    const zHigh = NORM_S_INV(1 - alphaHalf)
+    const xLow = mean + zLow * sd
+    const xHigh = mean + zHigh * sd
+    const excelLo = formatExcelCall('NORM.INV', [alphaHalf, mean, sd])
+    const excelHi = formatExcelCall('NORM.INV', [1 - alphaHalf, mean, sd])
+    return {
+      excelCalls: [excelLo, excelHi],
+      lines: [
+        { label: 'z* (lower)', value: fmt(zLow, 4) },
+        { label: 'z* (upper)', value: fmt(zHigh, 4) },
+        { label: 'XL (symmetric)', value: fmt(xLow, 4), emphasis: true },
+        { label: 'XU (symmetric)', value: fmt(xHigh, 4), emphasis: true },
+      ],
+      note:
+        'Symmetric-about-the-mean is one of infinitely many (XL, XU) pairs with the same middle probability; other non-symmetric solutions are equally valid.',
+      walkthrough: {
+        title: 'Normal · symmetric between bounds',
+        distribution: `X ~ N(${mean}, ${sd})`,
+        find: `XL, XU with P(XL < X < XU) = ${probability} (symmetric about μ)`,
+        diagram: {
+          kind: 'normal-shade',
+          mean,
+          sd,
+          shade: 'between',
+          lower: xLow,
+          upper: xHigh,
+          caption: `Central ${(probability * 100).toFixed(0)}% band (symmetric)`,
+        },
+        steps: [
+          ...intro,
+          step(
+            3,
+            'Identify what to find',
+            `Split the remaining probability ${(1 - probability).toFixed(4)} evenly into two tails of ${fmt(alphaHalf, 4)} each.`,
+          ),
+          step(
+            4,
+            'Draw a diagram',
+            'Shade the central band; note many other (non-symmetric) bands have the same area.',
+          ),
+          step(
+            5,
+            'Translate for Excel',
+            `XL = NORM.INV(${fmt(alphaHalf)}, μ, σ); XU = NORM.INV(${fmt(1 - alphaHalf)}, μ, σ).`,
+            { excel: [excelLo, excelHi] },
+          ),
+          step(
+            6,
+            'Solve and check',
+            `XL ≈ ${fmt(xLow, 4)}, XU ≈ ${fmt(xHigh, 4)}. This is the conventional symmetric choice, not the unique solution.`,
+            {
+              values: [
+                { label: 'XL', value: fmt(xLow, 4) },
+                { label: 'XU', value: fmt(xHigh, 4) },
+              ],
+            },
+          ),
+        ],
+        explanation:
+          'Any pair with the same middle probability works; symmetry about the mean is the usual convention taught in class.',
+      },
+    }
+  }
+
+  if (query === 'inverse') {
+    const probability = num(values, 'probability')
+    const x = NORM_INV(probability, mean, sd)
+    const excel = formatExcelCall('NORM.INV', [probability, mean, sd])
+    return {
+      excelCalls: [excel],
+      lines: [
+        {
+          label: `x such that P(X ≤ x) = ${probability}`,
+          value: fmt(x, 4),
+          emphasis: true,
+        },
+      ],
+      walkthrough: {
+        title: 'Normal · inverse (quantile)',
+        distribution: `X ~ N(${mean}, ${sd})`,
+        find: `x with P(X ≤ x) = ${probability}`,
+        diagram: {
+          kind: 'normal-shade',
+          mean,
+          sd,
+          shade: 'left',
+          x,
+          caption: `Find x so left-tail area equals ${probability}`,
+        },
+        steps: [
+          ...intro,
+          step(3, 'Identify what to find', `The cutoff x whose left-tail probability is ${probability}.`),
+          step(4, 'Draw a diagram', 'Shade the left area equal to the target probability; read x on the axis.'),
+          step(5, 'Translate for Excel', 'Use NORM.INV for the left-tail quantile.', {
+            excel: [excel],
+          }),
+          step(6, 'Solve and check', `${excel} ≈ ${fmt(x, 4)}.`, {
+            values: [{ label: 'x', value: fmt(x, 4) }],
+          }),
+        ],
+        explanation: 'Inverse problems flip the usual CDF lookup: probability in → x out.',
+      },
+    }
+  }
+
+  throw new Error(`Unsupported Normal query: ${query}`)
 }
 
 function solveStandardNormal(values: Record<string, unknown>): SolveResult {

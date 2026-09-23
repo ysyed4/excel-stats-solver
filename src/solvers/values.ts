@@ -27,6 +27,7 @@ const AUTOFILL_IDENTITY: Partial<
   Record<SolverId, Record<string, string | number | boolean>>
 > = {
   poisson: { hours: 1, independentDays: 1 },
+  uniform: { drawCount: 1 },
   'sample-mean': { useFpc: false, N: '' },
   'n-proportion': { conservative: false },
 }

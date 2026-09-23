@@ -42,19 +42,37 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
                 { value: 'moreThan', label: 'P(X > x)' },
                 { value: 'atMost', label: 'P(X ≤ x)' },
                 { value: 'equal', label: 'P(X = x)' },
+                {
+                  value: 'percentile',
+                  label: 'Find x s.t. P(X ≤ x) ≤ target',
+                },
               ]}
             />
           </Field>
-          <Field label="x">
-            <NumberInput value={v('x')} onChange={(x) => onChange('x', x)} />
-          </Field>
-          <Field label="Optional exact x₂" hint="also compute P(X = x₂)">
-            <NumberInput
-              value={v('x2')}
-              onChange={(x) => onChange('x2', x)}
-              placeholder="e.g. 15"
-            />
-          </Field>
+          {v('query', 'atLeast') === 'percentile' ? (
+            <Field label="Target probability p">
+              <NumberInput
+                value={v('probability')}
+                onChange={(x) => onChange('probability', x)}
+                placeholder="e.g. 0.2"
+                min="0"
+                max="1"
+              />
+            </Field>
+          ) : (
+            <>
+              <Field label="x">
+                <NumberInput value={v('x')} onChange={(x) => onChange('x', x)} />
+              </Field>
+              <Field label="Optional exact x₂" hint="also compute P(X = x₂)">
+                <NumberInput
+                  value={v('x2')}
+                  onChange={(x) => onChange('x2', x)}
+                  placeholder="e.g. 15"
+                />
+              </Field>
+            </>
+          )}
         </div>
       )
 
@@ -91,12 +109,28 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
                 { value: 'atMost', label: 'P(X ≤ x)' },
                 { value: 'atLeast', label: 'P(X ≥ x)' },
                 { value: 'moreThan', label: 'P(X > x)' },
+                {
+                  value: 'percentile',
+                  label: 'Find x s.t. P(X ≤ x) ≤ target',
+                },
               ]}
             />
           </Field>
-          <Field label="x">
-            <NumberInput value={v('x', '0')} onChange={(x) => onChange('x', x)} />
-          </Field>
+          {v('query', 'equal') === 'percentile' ? (
+            <Field label="Target probability p">
+              <NumberInput
+                value={v('probability')}
+                onChange={(x) => onChange('probability', x)}
+                placeholder="e.g. 0.2"
+                min="0"
+                max="1"
+              />
+            </Field>
+          ) : (
+            <Field label="x">
+              <NumberInput value={v('x', '0')} onChange={(x) => onChange('x', x)} />
+            </Field>
+          )}
         </div>
       )
 
@@ -137,6 +171,15 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
               placeholder="e.g. 2500"
             />
           </Field>
+          <Field
+            label="Independent draws"
+            hint="raise the single-draw probability to this power (e.g. 2 draws → 2)"
+          >
+            <NumberInput
+              value={v('drawCount', '1')}
+              onChange={(x) => onChange('drawCount', x)}
+            />
+          </Field>
         </div>
       )
 
@@ -161,6 +204,18 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
                 { value: 'less', label: 'P(X ≤ x)' },
                 { value: 'between', label: 'P(lower < X < upper)' },
                 { value: 'inverse', label: 'Find x from probability' },
+                {
+                  value: 'invBetweenLow',
+                  label: 'Find lower x in P(x < X < x₂) = p',
+                },
+                {
+                  value: 'invBetweenHigh',
+                  label: 'Find upper x in P(x₁ < X < x) = p',
+                },
+                {
+                  value: 'invBetweenSymmetric',
+                  label: 'Find symmetric XL, XU for P(XL<X<XU)=p',
+                },
               ]}
             />
           </Field>
@@ -181,13 +236,46 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
                 />
               </Field>
             </>
-          ) : v('query', 'greater') === 'inverse' ? (
-            <Field label="Left-tail probability">
+          ) : v('query', 'greater') === 'inverse' ||
+            v('query', 'greater') === 'invBetweenSymmetric' ? (
+            <Field label="Middle / left-tail probability p">
               <NumberInput
-                value={v('probability', '0.95')}
+                value={v('probability', '0.8')}
                 onChange={(x) => onChange('probability', x)}
               />
             </Field>
+          ) : v('query', 'greater') === 'invBetweenLow' ? (
+            <>
+              <Field label="Known upper x₂">
+                <NumberInput
+                  value={v('upper')}
+                  onChange={(x) => onChange('upper', x)}
+                  placeholder="x₂"
+                />
+              </Field>
+              <Field label="Middle probability p">
+                <NumberInput
+                  value={v('probability', '0.1')}
+                  onChange={(x) => onChange('probability', x)}
+                />
+              </Field>
+            </>
+          ) : v('query', 'greater') === 'invBetweenHigh' ? (
+            <>
+              <Field label="Known lower x₁">
+                <NumberInput
+                  value={v('lower')}
+                  onChange={(x) => onChange('lower', x)}
+                  placeholder="x₁"
+                />
+              </Field>
+              <Field label="Middle probability p">
+                <NumberInput
+                  value={v('probability', '0.1')}
+                  onChange={(x) => onChange('probability', x)}
+                />
+              </Field>
+            </>
           ) : (
             <Field label="x">
               <NumberInput value={v('x')} onChange={(x) => onChange('x', x)} />
