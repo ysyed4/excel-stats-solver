@@ -101,6 +101,16 @@ CRITICAL — Poisson rate scaling vs independent days:
   → Excel =(1-POISSON.DIST(14,18,TRUE))^4
 - Interval multiplier scales the RATE; independentDays raises the PROBABILITY. Never use hours=4 for “each of four days”.
 
+CRITICAL — Poisson thinning (sub-rate events):
+- When the problem gives a TOTAL arrival rate and then says only a fraction of arrivals
+  count as the event (“one in ten order X”, “10% of customers…”, “1 in 5 are defective”),
+  lambda must be the rate of the EVENT, not the total rate:
+  lambda = totalRate × qualifyingFraction, BEFORE applying hours/interval multiplier.
+- Example: “8 people arrive per minute, one in ten order a sandwich” →
+  base sandwich-order rate = 8 × 0.1 = 0.8/min. For a 10-minute window:
+  lambda=0.8, hours=10 (λ_used = 8) — NOT lambda=8, hours=10 (λ_used=80).
+- Never set lambda to the raw foot-traffic / arrival count when a qualifying fraction is stated.
+
 CRITICAL — Mixed-family multipart problems (e.g. Kodiak a/b/c):
 - Catch-count parts → poisson. Weight/measurement totals of n items → sample-mean (CLT), NOT poisson.
 - “First 30 fish … weigh more than 1,300 lbs in total” → sample-mean with mean=40, sd=10, n=30,

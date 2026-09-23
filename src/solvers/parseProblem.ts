@@ -389,6 +389,133 @@ function parseBinomial(text: string): Record<string, string | number | boolean> 
   return values
 }
 
+const POISSON_WORD_NUM: Record<string, number> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  fifteen: 15,
+  twenty: 20,
+  hundred: 100,
+}
+
+function parseWordOrNumber(token: string): number | undefined {
+  const t = token.trim().toLowerCase()
+  if (POISSON_WORD_NUM[t] !== undefined) return POISSON_WORD_NUM[t]
+  const n = Number(t.replace(/,/g, ''))
+  return Number.isFinite(n) ? n : undefined
+}
+
+/**
+ * Qualifying fraction for Poisson thinning: only a subset of arrivals are the event.
+ * “one in ten”, “1 in 10”, “10% of customers”, “2 out of 5”.
+ */
+export function extractQualifyingFraction(text: string): number | undefined {
+  const inPhrase = text.match(
+    /\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d+)\s+in\s+(a\s+)?(ten|twenty|hundred|one|two|three|four|five|six|seven|eight|nine|eleven|twelve|\d+)\b/i,
+  )
+  if (inPhrase) {
+    const numera = parseWordOrNumber(inPhrase[1])
+    const den = parseWordOrNumber(inPhrase[3])
+    if (numera !== undefined && den !== undefined && den > 0) return numera / den
+  }
+
+  const pct = num(
+    firstMatch(text, [
+      /(\d+(?:\.\d+)?)\s*%\s+of\s+(?:the\s+)?(?:customers?|arrivals?|people|shoppers?|orders?|items?|units?|visitors?)/i,
+      /(\d+(?:\.\d+)?)\s*%\s+(?:order|are|choose|buy|request)/i,
+    ]),
+  )
+  if (pct !== undefined) return pctToProb(pct)
+
+  const outOf = text.match(
+    /\b(\d+)\s+out\s+of\s+(?:every\s+)?(\d+)\b/i,
+  )
+  if (outOf) {
+    const a = Number(outOf[1])
+    const b = Number(outOf[2])
+    if (b > 0 && a <= b) return a / b
+  }
+
+  return undefined
+}
+
+/** Total arrival / foot-traffic rate with time unit (before thinning). */
+function extractArrivalRate(
+  text: string,
+): { rate: number; unit: 'minute' | 'hour' } | undefined {
+  const digit = text.match(
+    /(\d+(?:\.\d+)?)\s+(?:people|customers|arrivals?|shoppers?|visitors?|cars?)\s+arrive\s+per\s+(minutes?|mins?|hours?|hrs?)/i,
+  )
+  if (digit) {
+    const rate = Number(digit[1])
+    const u = digit[2].toLowerCase()
+    const unit: 'minute' | 'hour' =
+      u.startsWith('min') ? 'minute' : 'hour'
+    if (Number.isFinite(rate)) return { rate, unit }
+  }
+
+  const word = text.match(
+    /\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty)\s+(?:people|customers|arrivals?|shoppers?|visitors?)\s+arrive\s+per\s+(minutes?|mins?|hours?|hrs?)/i,
+  )
+  if (word) {
+    const rate = parseWordOrNumber(word[1])
+    const u = word[2].toLowerCase()
+    const unit: 'minute' | 'hour' =
+      u.startsWith('min') ? 'minute' : 'hour'
+    if (rate !== undefined) return { rate, unit }
+  }
+
+  const bare = text.match(
+    /(\d+(?:\.\d+)?)\s+arrive\s+per\s+(minutes?|mins?|hours?|hrs?)/i,
+  )
+  if (bare) {
+    const rate = Number(bare[1])
+    const u = bare[2].toLowerCase()
+    const unit: 'minute' | 'hour' =
+      u.startsWith('min') ? 'minute' : 'hour'
+    if (Number.isFinite(rate)) return { rate, unit }
+  }
+
+  return undefined
+}
+
+/** Window length in the same unit as the arrival rate → hours multiplier. */
+function extractIntervalMultiplier(
+  text: string,
+  unit: 'minute' | 'hour',
+): number | undefined {
+  if (unit === 'minute') {
+    const m = num(
+      firstMatch(text, [
+        /(\d+(?:\.\d+)?)\s*[- ]?minutes?/i,
+        /in\s+(?:a\s+)?(\d+(?:\.\d+)?)\s*[- ]?min/i,
+        /over\s+(\d+(?:\.\d+)?)\s*minutes?/i,
+        /during\s+(\d+(?:\.\d+)?)\s*minutes?/i,
+        /for\s+(\d+(?:\.\d+)?)\s*minutes?/i,
+      ]),
+    )
+    return m
+  }
+  const h = num(
+    firstMatch(text, [
+      /(\d+(?:\.\d+)?)\s*[- ]?hours?/i,
+      /in\s+(?:a\s+)?(\d+(?:\.\d+)?)\s*[- ]?hour/i,
+      /over\s+(\d+(?:\.\d+)?)\s*hours?/i,
+      /during\s+(\d+(?:\.\d+)?)\s*hours?/i,
+    ]),
+  )
+  return h
+}
+
 function parsePoisson(text: string): Record<string, string | number | boolean> {
   const values: Record<string, string | number | boolean> = {
     lambda: 1.5,
@@ -398,173 +525,189 @@ function parsePoisson(text: string): Record<string, string | number | boolean> {
     x: 0,
   }
 
-  // Fishing / multi-agent rate problems:
-  // λ_day = people × hours_per_day × rate_per_person_per_hour
-  // For a multi-day "trip" question, scale by days via the interval multiplier.
-  const ratePerHour = num(
-    firstMatch(text, [
-      /(\d+(?:\.\d+)?)\s*fish per hour/i,
-      /catches? about\s+(\d+(?:\.\d+)?)\s*(?:fish\s+)?per hour/i,
-      /about\s+(\d+(?:\.\d+)?)\s*fish per hour/i,
-    ]),
-  )
-  const people = num(
-    firstMatch(text, [
-      /(\d+)\s+(?:norwegian\s+)?(?:anglers?|men|women|people|fishermen|fishers)/i,
-      /(?:anglers?|men|people)\s*[:(]?\s*(\d+)/i,
-    ]),
-  )
-  const peopleWord = /\bthree\s+(?:norwegian\s+)?(?:anglers?|men)/i.test(text)
-    ? 3
-    : /\bfour\s+(?:norwegian\s+)?(?:anglers?|men)/i.test(text)
+  // Arrival rate × qualifying fraction (Poisson thinning) before interval scaling
+  const arrival = extractArrivalRate(text)
+  const fraction = extractQualifyingFraction(text)
+  let independentEach = false
+
+  if (arrival) {
+    values.lambda = arrival.rate * (fraction ?? 1)
+    const window = extractIntervalMultiplier(text, arrival.unit)
+    if (window !== undefined) values.hours = window
+  } else {
+    // Fishing / multi-agent rate problems:
+    // λ_day = people × hours_per_day × rate_per_person_per_hour
+    // For a multi-day "trip" question, scale by days via the interval multiplier.
+    const ratePerHour = num(
+      firstMatch(text, [
+        /(\d+(?:\.\d+)?)\s*fish per hour/i,
+        /catches? about\s+(\d+(?:\.\d+)?)\s*(?:fish\s+)?per hour/i,
+        /about\s+(\d+(?:\.\d+)?)\s*fish per hour/i,
+      ]),
+    )
+    const people = num(
+      firstMatch(text, [
+        /(\d+)\s+(?:norwegian\s+)?(?:anglers?|men|women|people|fishermen|fishers)/i,
+        /(?:anglers?|men|people)\s*[:(]?\s*(\d+)/i,
+      ]),
+    )
+    const peopleWord = /\bthree\s+(?:norwegian\s+)?(?:anglers?|men)/i.test(text)
+      ? 3
+      : /\bfour\s+(?:norwegian\s+)?(?:anglers?|men)/i.test(text)
+        ? 4
+        : /\bfive\s+(?:norwegian\s+)?(?:anglers?|men)/i.test(text)
+          ? 5
+          : /\btwo\s+(?:norwegian\s+)?(?:anglers?|men)/i.test(text)
+            ? 2
+            : undefined
+    const nPeopleResolved = people ?? peopleWord
+
+    const hoursPerDay = num(
+      firstMatch(text, [
+        /(\d+(?:\.\d+)?)\s*[- ]?hour(?:s)?\s+(?:fishing\s+)?(?:charter|tour|trip)/i,
+        /(?:charter|tour|trip)\s+for\s+each[^.]{0,60}?(\d+(?:\.\d+)?)\s*[- ]?hour/i,
+        /(\d+(?:\.\d+)?)\s*[- ]?hour(?:s)?\s+fishing/i,
+        /booked a\s+(\d+(?:\.\d+)?)\s*[- ]?hour/i,
+      ]),
+    )
+    const hoursWord = /four-hour|\b4-hour\b/i.test(text)
       ? 4
-      : /\bfive\s+(?:norwegian\s+)?(?:anglers?|men)/i.test(text)
-        ? 5
-        : /\btwo\s+(?:norwegian\s+)?(?:anglers?|men)/i.test(text)
+      : /three-hour|\b3-hour\b/i.test(text)
+        ? 3
+        : /two-hour|\b2-hour\b/i.test(text)
           ? 2
           : undefined
-  const nPeopleResolved = people ?? peopleWord
+    const hrs = hoursPerDay ?? hoursWord
 
-  const hoursPerDay = num(
-    firstMatch(text, [
-      /(\d+(?:\.\d+)?)\s*[- ]?hour(?:s)?\s+(?:fishing\s+)?(?:charter|tour|trip)/i,
-      /(?:charter|tour|trip)\s+for\s+each[^.]{0,60}?(\d+(?:\.\d+)?)\s*[- ]?hour/i,
-      /(\d+(?:\.\d+)?)\s*[- ]?hour(?:s)?\s+fishing/i,
-      /booked a\s+(\d+(?:\.\d+)?)\s*[- ]?hour/i,
-    ]),
-  )
-  const hoursWord = /four-hour|\b4-hour\b/i.test(text)
-    ? 4
-    : /three-hour|\b3-hour\b/i.test(text)
-      ? 3
-      : /two-hour|\b2-hour\b/i.test(text)
-        ? 2
-        : undefined
-  const hrs = hoursPerDay ?? hoursWord
-
-  const days = num(
-    firstMatch(text, [
-      /(\d+)\s+days?\s+they/i,
-      /each of the\s+(\d+)\s+days/i,
-      /for\s+(?:each of\s+)?(?:the\s+)?(\d+)\s+days/i,
-      /(\d+)\s*[- ]?day\s+(?:trip|visit|charter)/i,
-      /planning to be there[^.]*?(\d+)\s+days/i,
-    ]),
-  )
-  const daysWord = /\bfour days\b|\b4 days\b/i.test(text)
-    ? 4
-    : /\bfive days\b|\b5 days\b/i.test(text)
-      ? 5
-      : /\bthree days\b|\b3 days\b/i.test(text)
-        ? 3
-        : undefined
-  const dayCount = days ?? daysWord
-
-  const tripQuestion =
-    /during their trip|over the (?:whole |entire )?trip|in total.*trip|catch more than\s+\d+\s+fish during/i.test(
-      text,
+    const days = num(
+      firstMatch(text, [
+        /(\d+)\s+days?\s+they/i,
+        /each of the\s+(\d+)\s+days/i,
+        /for\s+(?:each of\s+)?(?:the\s+)?(\d+)\s+days/i,
+        /(\d+)\s*[- ]?day\s+(?:trip|visit|charter)/i,
+        /planning to be there[^.]*?(\d+)\s+days/i,
+      ]),
     )
+    const daysWord = /\bfour days\b|\b4 days\b/i.test(text)
+      ? 4
+      : /\bfive days\b|\b5 days\b/i.test(text)
+        ? 5
+        : /\bthree days\b|\b3 days\b/i.test(text)
+          ? 3
+          : undefined
+    const dayCount = days ?? daysWord
 
-  // “15 or more fish on each of the four days” → raise daily P to the 4th power (do NOT scale λ)
-  const eachDaysWord = /\bon each of (?:the )?(four|five|three|two)\s+days\b/i.exec(text)
-  const eachDaysNum = /\bon each of (?:the )?(\d+)\s+days\b/i.exec(text)
-  const eachDaysFromPhrase = eachDaysWord
-    ? ({ four: 4, five: 5, three: 3, two: 2 } as Record<string, number>)[
-        eachDaysWord[1].toLowerCase()
-      ]
-    : eachDaysNum
-      ? Number(eachDaysNum[1])
-      : undefined
-  const orMoreOnEach = /(\d+)\s+or more\s+fish\s+on each/i.test(text)
-  const atLeastOnEach = /at least\s+(\d+)\s+fish\s+on each/i.test(text)
-  const independentEach =
-    (orMoreOnEach || atLeastOnEach) &&
-    eachDaysFromPhrase !== undefined &&
-    eachDaysFromPhrase > 1
+    const tripQuestion =
+      /during their trip|over the (?:whole |entire )?trip|in total.*trip|catch more than\s+\d+\s+fish during/i.test(
+        text,
+      )
 
-  if (ratePerHour !== undefined && (nPeopleResolved !== undefined || hrs !== undefined)) {
-    const nPeople = nPeopleResolved ?? 1
-    const nHours = hrs ?? 1
-    const dailyLambda = nPeople * nHours * ratePerHour
-    values.lambda = dailyLambda
-    if (independentEach) {
-      // Per-day λ; days are independent repeats of the same event
-      values.hours = 1
-      values.independentDays = eachDaysFromPhrase!
-    } else if (tripQuestion && dayCount !== undefined && dayCount > 1) {
-      values.hours = dayCount
-      values.independentDays = 1
-    } else if (dayCount !== undefined && dayCount > 1 && /more than\s+\d+\s+fish/i.test(text)) {
-      // "more than N fish" with multi-day setup usually means the whole visit
-      values.hours = dayCount
-      values.independentDays = 1
-    } else {
-      values.hours = 1
-      values.independentDays = 1
-    }
-  } else if (
-    // "once every 2 minutes" → rate = 1/2 per minute
-    (() => {
-      const every = text.match(
-        /(?:once\s+)?every\s+(\d+(?:\.\d+)?)\s*(minutes?|mins?|hours?|hrs?|seconds?|days?)/i,
-      )
-      const window = text.match(
-        /(?:watch for|in|over|during)\s+(\d+(?:\.\d+)?)\s*(minutes?|mins?|hours?|hrs?|seconds?|days?)/i,
-      )
-      if (!every || !window) return false
-      const interval = Number(every[1])
-      const duration = Number(window[1])
-      const unitEvery = every[2].toLowerCase()
-      const unitWindow = window[2].toLowerCase()
-      const sameFamily =
-        (unitEvery.startsWith('min') && unitWindow.startsWith('min')) ||
-        ((unitEvery.startsWith('hour') || unitEvery.startsWith('hr')) &&
-          (unitWindow.startsWith('hour') || unitWindow.startsWith('hr'))) ||
-        (unitEvery.startsWith('sec') && unitWindow.startsWith('sec')) ||
-        (unitEvery.startsWith('day') && unitWindow.startsWith('day'))
-      if (sameFamily && interval > 0) {
-        values.lambda = duration / interval
+    // “15 or more fish on each of the four days” → raise daily P to the 4th power (do NOT scale λ)
+    const eachDaysWord = /\bon each of (?:the )?(four|five|three|two)\s+days\b/i.exec(text)
+    const eachDaysNum = /\bon each of (?:the )?(\d+)\s+days\b/i.exec(text)
+    const eachDaysFromPhrase = eachDaysWord
+      ? ({ four: 4, five: 5, three: 3, two: 2 } as Record<string, number>)[
+          eachDaysWord[1].toLowerCase()
+        ]
+      : eachDaysNum
+        ? Number(eachDaysNum[1])
+        : undefined
+    const orMoreOnEach = /(\d+)\s+or more\s+fish\s+on each/i.test(text)
+    const atLeastOnEach = /at least\s+(\d+)\s+fish\s+on each/i.test(text)
+    independentEach =
+      (orMoreOnEach || atLeastOnEach) &&
+      eachDaysFromPhrase !== undefined &&
+      eachDaysFromPhrase > 1
+
+    if (ratePerHour !== undefined && (nPeopleResolved !== undefined || hrs !== undefined)) {
+      const nPeople = nPeopleResolved ?? 1
+      const nHours = hrs ?? 1
+      const dailyLambda = nPeople * nHours * ratePerHour
+      values.lambda = dailyLambda
+      if (independentEach) {
+        // Per-day λ; days are independent repeats of the same event
         values.hours = 1
-        return true
+        values.independentDays = eachDaysFromPhrase!
+      } else if (tripQuestion && dayCount !== undefined && dayCount > 1) {
+        values.hours = dayCount
+        values.independentDays = 1
+      } else if (dayCount !== undefined && dayCount > 1 && /more than\s+\d+\s+fish/i.test(text)) {
+        // "more than N fish" with multi-day setup usually means the whole visit
+        values.hours = dayCount
+        values.independentDays = 1
+      } else {
+        values.hours = 1
+        values.independentDays = 1
       }
-      return false
-    })()
-  ) {
-    // handled above
-  } else {
-    const fridayMean = num(
-      text.match(/friday[^.]*?(?:average[, ]*|on average[, ]*)(\d+(?:\.\d+)?)/i) ||
-        text.match(/except friday when\s+(\d+(?:\.\d+)?)/i),
-    )
-    const mean = num(
-      firstMatch(text, [
-        /on average[, ]+(\d+(?:\.\d+)?)/i,
-        /average of\s+(\d+(?:\.\d+)?)/i,
-        /mean of\s+(\d+(?:\.\d+)?)/i,
-        /λ\s*=\s*(\d+(?:\.\d+)?)/i,
-        /poisson[^(]*\(?\s*(\d+(?:\.\d+)?)/i,
-        /(\d+(?:\.\d+)?)\s*per hour/i,
-        /about\s+(\d+(?:\.\d+)?)\s*per/i,
-      ]),
-    )
-    if (mean !== undefined && (fridayMean === undefined || mean !== fridayMean)) {
-      values.lambda = mean
-    } else if (mean !== undefined) {
-      values.lambda = mean
-    } else if (fridayMean !== undefined) {
-      values.lambda = fridayMean
-    }
+    } else if (
+      // "once every 2 minutes" → rate = 1/2 per minute
+      (() => {
+        const every = text.match(
+          /(?:once\s+)?every\s+(\d+(?:\.\d+)?)\s*(minutes?|mins?|hours?|hrs?|seconds?|days?)/i,
+        )
+        const window = text.match(
+          /(?:watch for|in|over|during)\s+(\d+(?:\.\d+)?)\s*(minutes?|mins?|hours?|hrs?|seconds?|days?)/i,
+        )
+        if (!every || !window) return false
+        const interval = Number(every[1])
+        const duration = Number(window[1])
+        const unitEvery = every[2].toLowerCase()
+        const unitWindow = window[2].toLowerCase()
+        const sameFamily =
+          (unitEvery.startsWith('min') && unitWindow.startsWith('min')) ||
+          ((unitEvery.startsWith('hour') || unitEvery.startsWith('hr')) &&
+            (unitWindow.startsWith('hour') || unitWindow.startsWith('hr'))) ||
+          (unitEvery.startsWith('sec') && unitWindow.startsWith('sec')) ||
+          (unitEvery.startsWith('day') && unitWindow.startsWith('day'))
+        if (sameFamily && interval > 0) {
+          values.lambda = duration / interval
+          values.hours = 1
+          return true
+        }
+        return false
+      })()
+    ) {
+      // handled above
+    } else {
+      const fridayMean = num(
+        text.match(/friday[^.]*?(?:average[, ]*|on average[, ]*)(\d+(?:\.\d+)?)/i) ||
+          text.match(/except friday when\s+(\d+(?:\.\d+)?)/i),
+      )
+      const mean = num(
+        firstMatch(text, [
+          /on average[, ]+(\d+(?:\.\d+)?)/i,
+          /average of\s+(\d+(?:\.\d+)?)/i,
+          /mean of\s+(\d+(?:\.\d+)?)/i,
+          /λ\s*=\s*(\d+(?:\.\d+)?)/i,
+          /poisson[^(]*\(?\s*(\d+(?:\.\d+)?)/i,
+          /(\d+(?:\.\d+)?)\s*per hour/i,
+          /about\s+(\d+(?:\.\d+)?)\s*per/i,
+        ]),
+      )
+      if (mean !== undefined && (fridayMean === undefined || mean !== fridayMean)) {
+        values.lambda = mean
+      } else if (mean !== undefined) {
+        values.lambda = mean
+      } else if (fridayMean !== undefined) {
+        values.lambda = fridayMean
+      }
 
-    const hours = num(
-      firstMatch(text, [
-        /(\d+(?:\.\d+)?)\s*[- ]?hours?/i,
-        /in a\s+(\d+(?:\.\d+)?)\s*hour/i,
-        /over\s+(\d+(?:\.\d+)?)\s*hours?/i,
-        /watch for\s+(\d+(?:\.\d+)?)/i,
-      ]),
-    )
-    if (hours !== undefined && !/desks?|employees?|fish per hour|anglers?/i.test(text)) {
-      values.hours = hours
+      // Thin a generic per-interval rate when a qualifying fraction is stated
+      if (fraction !== undefined && typeof values.lambda === 'number') {
+        values.lambda = values.lambda * fraction
+      }
+
+      const hours = num(
+        firstMatch(text, [
+          /(\d+(?:\.\d+)?)\s*[- ]?hours?/i,
+          /in a\s+(\d+(?:\.\d+)?)\s*hour/i,
+          /over\s+(\d+(?:\.\d+)?)\s*hours?/i,
+          /watch for\s+(\d+(?:\.\d+)?)/i,
+        ]),
+      )
+      if (hours !== undefined && !/desks?|employees?|fish per hour|anglers?/i.test(text)) {
+        values.hours = hours
+      }
     }
   }
 
