@@ -104,21 +104,23 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
       return (
         <div className="form-grid">
           <Field label="Minimum a">
-            <NumberInput value={v('a', '2000')} onChange={(x) => onChange('a', x)} />
+            <NumberInput value={v('a')} onChange={(x) => onChange('a', x)} placeholder="a" />
           </Field>
           <Field label="Maximum b">
-            <NumberInput value={v('b', '5000')} onChange={(x) => onChange('b', x)} />
+            <NumberInput value={v('b')} onChange={(x) => onChange('b', x)} placeholder="b" />
           </Field>
           <Field label="Between · lower">
             <NumberInput
-              value={v('lower', '2500')}
+              value={v('lower')}
               onChange={(x) => onChange('lower', x)}
+              placeholder="optional"
             />
           </Field>
           <Field label="Between · upper">
             <NumberInput
-              value={v('upper', '3000')}
+              value={v('upper')}
               onChange={(x) => onChange('upper', x)}
+              placeholder="optional"
             />
           </Field>
           <Field label="Optional P(X ≥ …)">

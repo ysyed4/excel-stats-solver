@@ -34,6 +34,8 @@ const FIELD_LABELS: Record<string, string> = {
   independentDays: 'Independent days',
   a: 'Minimum a',
   b: 'Maximum b',
+  atLeast: 'Optional P(X ≥ …)',
+  exact: 'Optional exact point',
   probability: 'Probability',
   alpha: 'α',
   t: 't',
@@ -59,6 +61,14 @@ function num(values: Record<string, unknown>, key: string): number {
     throw new Error(`Enter a valid number for ${fieldLabel(key)}`)
   }
   return n
+}
+
+/** True when a form field holds a finite number (not blank / mid-edit garbage). */
+function hasFiniteNumber(values: Record<string, unknown>, key: string): boolean {
+  const raw = values[key]
+  if (raw === '' || raw === null || raw === undefined) return false
+  const n = typeof raw === 'number' ? raw : Number(String(raw).replace(/,/g, ''))
+  return Number.isFinite(n)
 }
 
 function bool(values: Record<string, unknown>, key: string, fallback = false): boolean {
@@ -671,39 +681,79 @@ function solvePoisson(values: Record<string, unknown>): SolveResult {
 function solveUniform(values: Record<string, unknown>): SolveResult {
   const a = num(values, 'a')
   const b = num(values, 'b')
-  const lower = num(values, 'lower')
-  const upper = num(values, 'upper')
-  const between = UNIFORM_RANGE_PROB(a, b, lower, upper)
-  const lines = [
-    {
-      label: `P(${lower} ≤ X ≤ ${upper})`,
-      value: fmt(between),
-      emphasis: true,
-    },
-  ]
-  const excelCalls = [
-    `=(MIN(${b}, ${upper}) - MAX(${a}, ${lower})) / (${b} - ${a})`,
-  ]
 
-  const regions = [{ from: Math.max(a, Math.min(lower, upper)), to: Math.min(b, Math.max(lower, upper)), label: 'between' }]
-  const stepValues = [{ label: `P(${lower} ≤ X ≤ ${upper})`, value: fmt(between) }]
+  // Active query is whichever optional field(s) the user actually filled —
+  // never require Between · lower/upper when only P(X ≥ …) or exact is set.
+  const wantBetween =
+    hasFiniteNumber(values, 'lower') && hasFiniteNumber(values, 'upper')
+  const wantAtLeast = hasFiniteNumber(values, 'atLeast')
+  const wantExact = hasFiniteNumber(values, 'exact')
+
+  if (!wantBetween && !wantAtLeast && !wantExact) {
+    // One bound alone for “between” → name the missing field
+    if (hasFiniteNumber(values, 'lower') && !hasFiniteNumber(values, 'upper')) {
+      throw new Error(`Enter a valid number for ${fieldLabel('upper')}`)
+    }
+    if (hasFiniteNumber(values, 'upper') && !hasFiniteNumber(values, 'lower')) {
+      throw new Error(`Enter a valid number for ${fieldLabel('lower')}`)
+    }
+    throw new Error(
+      'Enter a between range, Optional P(X ≥ …), or an exact point to compute.',
+    )
+  }
+
+  const lines: SolveResult['lines'] = []
+  const excelCalls: string[] = []
+  const regions: { from: number; to: number; label: string }[] = []
+  const stepValues: { label: string; value: string }[] = []
+  const findParts: string[] = []
+  let betweenText = ''
   let atLeastText = ''
   let exactText = ''
 
-  if (values.atLeast !== undefined && values.atLeast !== '') {
+  if (wantBetween) {
+    const lower = num(values, 'lower')
+    const upper = num(values, 'upper')
+    const between = UNIFORM_RANGE_PROB(a, b, lower, upper)
+    lines.push({
+      label: `P(${lower} ≤ X ≤ ${upper})`,
+      value: fmt(between),
+      emphasis: true,
+    })
+    excelCalls.push(
+      `=(MIN(${b}, ${upper}) - MAX(${a}, ${lower})) / (${b} - ${a})`,
+    )
+    regions.push({
+      from: Math.max(a, Math.min(lower, upper)),
+      to: Math.min(b, Math.max(lower, upper)),
+      label: 'between',
+    })
+    stepValues.push({ label: `P(${lower} ≤ X ≤ ${upper})`, value: fmt(between) })
+    findParts.push(`P(${lower} ≤ X ≤ ${upper})`)
+    betweenText = `P(${lower} ≤ X ≤ ${upper}) = ${fmt(between)}.`
+  }
+
+  if (wantAtLeast) {
     const atLeast = num(values, 'atLeast')
     const p = UNIFORM_RANGE_PROB(a, b, atLeast, b)
     lines.push({ label: `P(X ≥ ${atLeast})`, value: fmt(p), emphasis: true })
+    excelCalls.push(`=(${b} - ${atLeast}) / (${b} - ${a})`)
     regions.push({ from: Math.max(a, atLeast), to: b, label: '≥' })
     stepValues.push({ label: `P(X ≥ ${atLeast})`, value: fmt(p) })
-    atLeastText = ` Also P(X ≥ ${atLeast}) = (${b} − ${atLeast}) / (${b} − ${a}) = ${fmt(p)}.`
+    findParts.push(`P(X ≥ ${atLeast})`)
+    atLeastText = ` P(X ≥ ${atLeast}) = (${b} − ${atLeast}) / (${b} − ${a}) = ${fmt(p)}.`
   }
 
-  if (values.exact !== undefined && values.exact !== '') {
+  if (wantExact) {
     const exact = num(values, 'exact')
     lines.push({ label: `P(X = ${exact})`, value: '0', emphasis: true })
     stepValues.push({ label: `P(X = ${exact})`, value: '0' })
+    findParts.push(`P(X = ${exact})`)
     exactText = ` A single point such as X = ${exact} has probability 0 on a continuous distribution.`
+  }
+
+  if (excelCalls.length === 0) {
+    excelCalls.push(`=length / (${b} - ${a})`)
   }
 
   return {
@@ -713,8 +763,7 @@ function solveUniform(values: Record<string, unknown>): SolveResult {
     walkthrough: {
       title: 'Uniform · length ratios',
       distribution: `X ~ Uniform(a = ${a}, b = ${b})`,
-      find: `P(${lower} ≤ X ≤ ${upper})` +
-        (values.atLeast ? ` and related events` : ''),
+      find: findParts.join('; '),
       diagram: {
         kind: 'uniform-bar',
         a,
@@ -733,11 +782,7 @@ function solveUniform(values: Record<string, unknown>): SolveResult {
           'Code the problem',
           `Minimum a = ${a}, maximum b = ${b}. Total length = ${b - a}.`,
         ),
-        step(
-          3,
-          'Identify what to find',
-          `Primary event: P(${lower} ≤ X ≤ ${upper}).`,
-        ),
+        step(3, 'Identify what to find', findParts.join('; ') + '.'),
         step(
           4,
           'Draw a diagram',
@@ -752,7 +797,7 @@ function solveUniform(values: Record<string, unknown>): SolveResult {
         step(
           6,
           'Solve and check',
-          `P(${lower} ≤ X ≤ ${upper}) = ${fmt(between)}.${atLeastText}${exactText}`,
+          `${betweenText}${atLeastText}${exactText}`.trim(),
           { values: stepValues },
         ),
       ],
