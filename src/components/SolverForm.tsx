@@ -46,6 +46,14 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
                   value: 'percentile',
                   label: 'Find x s.t. P(X ≤ x) ≤ target',
                 },
+                {
+                  value: 'outside',
+                  label: 'P(X < a or X > b)',
+                },
+                {
+                  value: 'compare',
+                  label: 'Which is more likely, A or B?',
+                },
               ]}
             />
           </Field>
@@ -59,6 +67,56 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
                 max="1"
               />
             </Field>
+          ) : v('query', 'atLeast') === 'outside' ? (
+            <>
+              <Field label="Left threshold a (X < a)">
+                <NumberInput
+                  value={v('lower')}
+                  onChange={(x) => onChange('lower', x)}
+                  placeholder="a"
+                />
+              </Field>
+              <Field label="Right threshold b (X > b)">
+                <NumberInput
+                  value={v('upper')}
+                  onChange={(x) => onChange('upper', x)}
+                  placeholder="b"
+                />
+              </Field>
+            </>
+          ) : v('query', 'atLeast') === 'compare' ? (
+            <>
+              <Field label="Event A query">
+                <SelectInput
+                  value={v('queryA', 'equal')}
+                  onChange={(x) => onChange('queryA', x)}
+                  options={[
+                    { value: 'equal', label: 'P(X = x)' },
+                    { value: 'atLeast', label: 'P(X ≥ x)' },
+                    { value: 'atMost', label: 'P(X ≤ x)' },
+                    { value: 'moreThan', label: 'P(X > x)' },
+                  ]}
+                />
+              </Field>
+              <Field label="Event A · x">
+                <NumberInput value={v('xA')} onChange={(x) => onChange('xA', x)} />
+              </Field>
+              <Field label="Event B query">
+                <SelectInput
+                  value={v('queryB', 'equal')}
+                  onChange={(x) => onChange('queryB', x)}
+                  options={[
+                    { value: 'equal', label: 'P(X = x)' },
+                    { value: 'atLeast', label: 'P(X ≥ x)' },
+                    { value: 'atMost', label: 'P(X ≤ x)' },
+                    { value: 'moreThan', label: 'P(X > x)' },
+                  ]}
+                />
+              </Field>
+              <Field label="Event B · x">
+                <NumberInput value={v('xB')} onChange={(x) => onChange('xB', x)} />
+              </Field>
+            </>
           ) : (
             <>
               <Field label="x">
@@ -113,6 +171,14 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
                   value: 'percentile',
                   label: 'Find x s.t. P(X ≤ x) ≤ target',
                 },
+                {
+                  value: 'outside',
+                  label: 'P(X < a or X > b)',
+                },
+                {
+                  value: 'compare',
+                  label: 'Which is more likely, A or B?',
+                },
               ]}
             />
           </Field>
@@ -126,6 +192,56 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
                 max="1"
               />
             </Field>
+          ) : v('query', 'equal') === 'outside' ? (
+            <>
+              <Field label="Left threshold a (X < a)">
+                <NumberInput
+                  value={v('lower')}
+                  onChange={(x) => onChange('lower', x)}
+                  placeholder="a"
+                />
+              </Field>
+              <Field label="Right threshold b (X > b)">
+                <NumberInput
+                  value={v('upper')}
+                  onChange={(x) => onChange('upper', x)}
+                  placeholder="b"
+                />
+              </Field>
+            </>
+          ) : v('query', 'equal') === 'compare' ? (
+            <>
+              <Field label="Event A query">
+                <SelectInput
+                  value={v('queryA', 'equal')}
+                  onChange={(x) => onChange('queryA', x)}
+                  options={[
+                    { value: 'equal', label: 'P(X = x)' },
+                    { value: 'atLeast', label: 'P(X ≥ x)' },
+                    { value: 'atMost', label: 'P(X ≤ x)' },
+                    { value: 'moreThan', label: 'P(X > x)' },
+                  ]}
+                />
+              </Field>
+              <Field label="Event A · x">
+                <NumberInput value={v('xA')} onChange={(x) => onChange('xA', x)} />
+              </Field>
+              <Field label="Event B query">
+                <SelectInput
+                  value={v('queryB', 'equal')}
+                  onChange={(x) => onChange('queryB', x)}
+                  options={[
+                    { value: 'equal', label: 'P(X = x)' },
+                    { value: 'atLeast', label: 'P(X ≥ x)' },
+                    { value: 'atMost', label: 'P(X ≤ x)' },
+                    { value: 'moreThan', label: 'P(X > x)' },
+                  ]}
+                />
+              </Field>
+              <Field label="Event B · x">
+                <NumberInput value={v('xB')} onChange={(x) => onChange('xB', x)} />
+              </Field>
+            </>
           ) : (
             <Field label="x">
               <NumberInput value={v('x', '0')} onChange={(x) => onChange('x', x)} />
@@ -203,6 +319,8 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
                 { value: 'greater', label: 'P(X > x)' },
                 { value: 'less', label: 'P(X ≤ x)' },
                 { value: 'between', label: 'P(lower < X < upper)' },
+                { value: 'outside', label: 'P(X < a or X > b)' },
+                { value: 'compare', label: 'Which is more likely, A or B?' },
                 { value: 'inverse', label: 'Find x from probability' },
                 {
                   value: 'invBetweenLow',
@@ -219,21 +337,63 @@ export function SolverForm({ solverId, values, onChange }: SolverFormProps) {
               ]}
             />
           </Field>
-          {v('query', 'greater') === 'between' ? (
+          {v('query', 'greater') === 'between' ||
+          v('query', 'greater') === 'outside' ? (
             <>
-              <Field label="Lower">
+              <Field
+                label={
+                  v('query', 'greater') === 'outside'
+                    ? 'Left threshold a (X < a)'
+                    : 'Lower'
+                }
+              >
                 <NumberInput
                   value={v('lower')}
                   onChange={(x) => onChange('lower', x)}
-                  placeholder="lower"
+                  placeholder="lower / a"
                 />
               </Field>
-              <Field label="Upper">
+              <Field
+                label={
+                  v('query', 'greater') === 'outside'
+                    ? 'Right threshold b (X > b)'
+                    : 'Upper'
+                }
+              >
                 <NumberInput
                   value={v('upper')}
                   onChange={(x) => onChange('upper', x)}
-                  placeholder="upper"
+                  placeholder="upper / b"
                 />
+              </Field>
+            </>
+          ) : v('query', 'greater') === 'compare' ? (
+            <>
+              <Field label="Event A query">
+                <SelectInput
+                  value={v('queryA', 'greater')}
+                  onChange={(x) => onChange('queryA', x)}
+                  options={[
+                    { value: 'greater', label: 'P(X > x)' },
+                    { value: 'less', label: 'P(X ≤ x)' },
+                  ]}
+                />
+              </Field>
+              <Field label="Event A · x">
+                <NumberInput value={v('xA')} onChange={(x) => onChange('xA', x)} />
+              </Field>
+              <Field label="Event B query">
+                <SelectInput
+                  value={v('queryB', 'greater')}
+                  onChange={(x) => onChange('queryB', x)}
+                  options={[
+                    { value: 'greater', label: 'P(X > x)' },
+                    { value: 'less', label: 'P(X ≤ x)' },
+                  ]}
+                />
+              </Field>
+              <Field label="Event B · x">
+                <NumberInput value={v('xB')} onChange={(x) => onChange('xB', x)} />
               </Field>
             </>
           ) : v('query', 'greater') === 'inverse' ||

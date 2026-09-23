@@ -256,6 +256,168 @@ function solveBinomial(values: Record<string, unknown>): SolveResult {
     }
   }
 
+  // P(X < a) or P(X > b) = left tail + right tail (never drop one side)
+  if (query === 'outside') {
+    const a = num(values, 'lower')
+    const b = num(values, 'upper')
+    if (!(a < b)) {
+      throw new Error('Outside query needs lower < upper (thresholds for X < a or X > b).')
+    }
+    const leftCut = a - 1
+    const leftProb = leftCut < 0 ? 0 : BINOM_DIST(leftCut, n, p, true)
+    const rightCum = BINOM_DIST(b, n, p, true)
+    const rightProb = 1 - rightCum
+    const total = leftProb + rightProb
+    const excelLeft =
+      leftCut < 0 ? '=0' : formatExcelCall('BINOM.DIST', [leftCut, n, p, true])
+    const excelRight = formatExcelCall('BINOM.DIST', [b, n, p, true])
+    return {
+      excelCalls: [
+        leftCut < 0
+          ? `=0 + (1 - ${excelRight.slice(1)})`
+          : `=${excelLeft.slice(1)} + (1 - ${excelRight.slice(1)})`,
+      ],
+      lines: [
+        {
+          label: `P(X < ${a}) = P(X ≤ ${leftCut < 0 ? '−1' : leftCut})`,
+          value: fmt(leftProb),
+        },
+        { label: `P(X > ${b})`, value: fmt(rightProb) },
+        {
+          label: `P(X < ${a} or X > ${b})`,
+          value: fmt(total),
+          emphasis: true,
+        },
+      ],
+      note: 'Union of two disjoint tails: compute both terms and add — do not drop either side.',
+      walkthrough: {
+        title: 'Binomial · outside (two-tail union)',
+        distribution: `X ~ Binomial(n = ${n}, p = ${p})`,
+        find: `P(X < ${a} or X > ${b})`,
+        diagram: {
+          kind: 'number-line',
+          min: 0,
+          max: n,
+          marks: [
+            { value: 0, label: '0' },
+            { value: a, label: String(a) },
+            { value: b, label: String(b) },
+            { value: n, label: String(n) },
+          ],
+          highlightFrom: 0,
+          highlightTo: Math.max(0, leftCut),
+          caption: `Left: X < ${a}; right: X > ${b}`,
+        },
+        steps: [
+          ...baseSteps,
+          step(
+            3,
+            'Identify what to find',
+            `P(X < ${a}) + P(X > ${b}) (disjoint events — add both).`,
+          ),
+          step(
+            4,
+            'Draw a diagram',
+            `Shade 0…${leftCut < 0 ? '∅' : leftCut} and ${b + 1}…${n}.`,
+          ),
+          step(
+            5,
+            'Translate for Excel',
+            `P(X < ${a}) = BINOM.DIST(${leftCut},…,TRUE); P(X > ${b}) = 1 − BINOM.DIST(${b},…,TRUE).`,
+            { excel: [excelLeft, `=1 - ${excelRight.slice(1)}`] },
+          ),
+          step(
+            6,
+            'Solve and check',
+            `${fmt(leftProb)} + ${fmt(rightProb)} = ${fmt(total)}.`,
+            {
+              values: [
+                { label: `P(X < ${a})`, value: fmt(leftProb) },
+                { label: `P(X > ${b})`, value: fmt(rightProb) },
+                { label: 'Union', value: fmt(total) },
+              ],
+            },
+          ),
+        ],
+        explanation:
+          'An “or” of two disjoint tails is a sum. Never report only the first tail.',
+      },
+    }
+  }
+
+  if (query === 'compare') {
+    const queryA = str(values, 'queryA', 'equal')
+    const queryB = str(values, 'queryB', 'equal')
+    const xA = num(values, 'xA')
+    const xB = num(values, 'xB')
+    const pA = binomialEventProb(n, p, queryA, xA)
+    const pB = binomialEventProb(n, p, queryB, xB)
+    const labelA = binomialEventLabel(queryA, xA)
+    const labelB = binomialEventLabel(queryB, xB)
+    const winner =
+      Math.abs(pA - pB) < 1e-12
+        ? 'Equally likely'
+        : pA > pB
+          ? `A more likely (${labelA})`
+          : `B more likely (${labelB})`
+    return {
+      excelCalls: [
+        binomialEventExcel(n, p, queryA, xA),
+        binomialEventExcel(n, p, queryB, xB),
+      ],
+      lines: [
+        { label: `A: ${labelA}`, value: fmt(pA), emphasis: pA >= pB },
+        { label: `B: ${labelB}`, value: fmt(pB), emphasis: pB > pA },
+        { label: 'Comparison', value: winner, emphasis: true },
+      ],
+      note: 'Compute both sides fully, then compare — never drop one event.',
+      walkthrough: {
+        title: 'Binomial · which is more likely?',
+        distribution: `X ~ Binomial(n = ${n}, p = ${p})`,
+        find: `Compare ${labelA} vs ${labelB}`,
+        diagram: {
+          kind: 'number-line',
+          min: 0,
+          max: n,
+          marks: [
+            { value: 0, label: '0' },
+            { value: xA, label: `A:${xA}` },
+            { value: xB, label: `B:${xB}` },
+            { value: n, label: String(n) },
+          ],
+          highlightFrom: Math.min(xA, xB),
+          highlightTo: Math.max(xA, xB),
+          caption: 'Evaluate both events on the same distribution',
+        },
+        steps: [
+          ...baseSteps,
+          step(3, 'Identify what to find', `Compare ${labelA} with ${labelB}.`),
+          step(4, 'Draw a diagram', 'Mark both events on the same number line.'),
+          step(5, 'Translate for Excel', 'Compute each probability with BINOM.DIST.', {
+            excel: [
+              binomialEventExcel(n, p, queryA, xA),
+              binomialEventExcel(n, p, queryB, xB),
+            ],
+          }),
+          step(
+            6,
+            'Solve and check',
+            `${labelA} ≈ ${fmt(pA)}; ${labelB} ≈ ${fmt(pB)} → ${winner}.`,
+            {
+              values: [
+                { label: labelA, value: fmt(pA) },
+                { label: labelB, value: fmt(pB) },
+              ],
+            },
+          ),
+        ],
+        explanation:
+          'A comparison question requires both probabilities before declaring a winner.',
+      },
+    }
+  }
+
+
   const x = num(values, 'x')
   const hasExact = values.x2 !== undefined && values.x2 !== ''
   const x2 = hasExact ? num(values, 'x2') : undefined
@@ -421,6 +583,8 @@ function solveBinomial(values: Record<string, unknown>): SolveResult {
     }
   }
 
+
+  if (query === 'atLeast') {
   // atLeast: P(X ≥ x) = 1 − P(X ≤ x−1)
   const cutoff = x - 1
   const left = cutoff < 0 ? 0 : BINOM_DIST(cutoff, n, p, true)
@@ -535,7 +699,42 @@ function solveBinomial(values: Record<string, unknown>): SolveResult {
         'Same workflow as the MMA slides: identify Binomial → code n and p → state the event → sketch the number line → rewrite as 1 − CDF → look up with BINOM.DIST.',
     },
   }
+
+  }
+
+  throw new Error(
+    `Unknown binomial query: "${query}". Expected equal, atMost, atLeast, moreThan, percentile, outside, or compare.`,
+  )
 }
+
+function binomialEventLabel(query: string, x: number): string {
+  if (query === 'equal') return `P(X = ${x})`
+  if (query === 'atMost') return `P(X ≤ ${x})`
+  if (query === 'moreThan') return `P(X > ${x})`
+  return `P(X ≥ ${x})`
+}
+
+function binomialEventProb(n: number, p: number, query: string, x: number): number {
+  if (query === 'equal') return BINOM_DIST(x, n, p, false)
+  if (query === 'atMost') return BINOM_DIST(x, n, p, true)
+  if (query === 'moreThan') return 1 - BINOM_DIST(x, n, p, true)
+  const cutoff = x - 1
+  return cutoff < 0 ? 1 : 1 - BINOM_DIST(cutoff, n, p, true)
+}
+
+function binomialEventExcel(n: number, p: number, query: string, x: number): string {
+  if (query === 'equal') return formatExcelCall('BINOM.DIST', [x, n, p, false])
+  if (query === 'atMost') return formatExcelCall('BINOM.DIST', [x, n, p, true])
+  if (query === 'moreThan') {
+    const left = formatExcelCall('BINOM.DIST', [x, n, p, true])
+    return `=1 - ${left.slice(1)}`
+  }
+  const cutoff = x - 1
+  if (cutoff < 0) return '=1'
+  const left = formatExcelCall('BINOM.DIST', [cutoff, n, p, true])
+  return `=1 - ${left.slice(1)}`
+}
+
 
 function solvePoisson(values: Record<string, unknown>): SolveResult {
   const lambdaBase = num(values, 'lambda')
@@ -658,6 +857,164 @@ function solvePoisson(values: Record<string, unknown>): SolveResult {
       },
     }
   }
+
+  if (query === 'outside') {
+    const a = num(values, 'lower')
+    const b = num(values, 'upper')
+    if (!(a < b)) {
+      throw new Error('Outside query needs lower < upper (thresholds for X < a or X > b).')
+    }
+    const leftCut = a - 1
+    const leftProb = leftCut < 0 ? 0 : POISSON_DIST(leftCut, lambda, true)
+    const rightCum = POISSON_DIST(b, lambda, true)
+    const rightProb = 1 - rightCum
+    const total = leftProb + rightProb
+    const excelLeft =
+      leftCut < 0 ? '=0' : formatExcelCall('POISSON.DIST', [leftCut, lambda, true])
+    const excelRight = formatExcelCall('POISSON.DIST', [b, lambda, true])
+    return {
+      excelCalls: [
+        leftCut < 0
+          ? `=0 + (1 - ${excelRight.slice(1)})`
+          : `=${excelLeft.slice(1)} + (1 - ${excelRight.slice(1)})`,
+      ],
+      lines: [
+        {
+          label: `P(X < ${a}) = P(X ≤ ${leftCut < 0 ? '−1' : leftCut})`,
+          value: fmt(leftProb),
+        },
+        { label: `P(X > ${b})`, value: fmt(rightProb) },
+        {
+          label: `P(X < ${a} or X > ${b})`,
+          value: fmt(total),
+          emphasis: true,
+        },
+      ],
+      note: 'Union of two disjoint tails: compute both terms and add — do not drop either side.',
+      walkthrough: {
+        title: 'Poisson · outside (two-tail union)',
+        distribution: `X ~ Poisson(λ = ${fmt(lambda, 4)})`,
+        find: `P(X < ${a} or X > ${b})`,
+        diagram: {
+          kind: 'number-line',
+          min: 0,
+          max: Math.max(b + 5, a + 5, 20),
+          marks: [
+            { value: 0, label: '0' },
+            { value: a, label: String(a) },
+            { value: b, label: String(b) },
+          ],
+          highlightFrom: 0,
+          highlightTo: Math.max(0, leftCut),
+          caption: `Left: X < ${a}; right: X > ${b}`,
+        },
+        steps: [
+          ...base,
+          step(
+            3,
+            'Identify what to find',
+            `P(X < ${a}) + P(X > ${b}) (disjoint events — add both).`,
+          ),
+          step(
+            4,
+            'Draw a diagram',
+            `Shade 0…${leftCut < 0 ? '∅' : leftCut} and ${b + 1}, ${b + 2}, …`,
+          ),
+          step(
+            5,
+            'Translate for Excel',
+            `P(X < ${a}) = POISSON.DIST(${leftCut}, λ, TRUE); P(X > ${b}) = 1 − POISSON.DIST(${b}, λ, TRUE).`,
+            { excel: [excelLeft, `=1 - ${excelRight.slice(1)}`] },
+          ),
+          step(
+            6,
+            'Solve and check',
+            `${fmt(leftProb)} + ${fmt(rightProb)} = ${fmt(total)}. Never drop one tail.`,
+            {
+              values: [
+                { label: `P(X < ${a})`, value: fmt(leftProb) },
+                { label: `P(X > ${b})`, value: fmt(rightProb) },
+                { label: 'Union', value: fmt(total) },
+              ],
+            },
+          ),
+        ],
+        explanation:
+          'An “or” of two disjoint tails is a sum. Never report only the first tail.',
+      },
+    }
+  }
+
+  if (query === 'compare') {
+    const queryA = str(values, 'queryA', 'equal')
+    const queryB = str(values, 'queryB', 'equal')
+    const xA = num(values, 'xA')
+    const xB = num(values, 'xB')
+    const pA = poissonEventProb(lambda, queryA, xA)
+    const pB = poissonEventProb(lambda, queryB, xB)
+    const labelA = binomialEventLabel(queryA, xA)
+    const labelB = binomialEventLabel(queryB, xB)
+    const winner =
+      Math.abs(pA - pB) < 1e-12
+        ? 'Equally likely'
+        : pA > pB
+          ? `A more likely (${labelA})`
+          : `B more likely (${labelB})`
+    return {
+      excelCalls: [
+        poissonEventExcel(lambda, queryA, xA),
+        poissonEventExcel(lambda, queryB, xB),
+      ],
+      lines: [
+        { label: `A: ${labelA}`, value: fmt(pA), emphasis: pA >= pB },
+        { label: `B: ${labelB}`, value: fmt(pB), emphasis: pB > pA },
+        { label: 'Comparison', value: winner, emphasis: true },
+      ],
+      note: 'Compute both sides fully, then compare.',
+      walkthrough: {
+        title: 'Poisson · which is more likely?',
+        distribution: `X ~ Poisson(λ = ${fmt(lambda, 4)})`,
+        find: `Compare ${labelA} vs ${labelB}`,
+        diagram: {
+          kind: 'number-line',
+          min: 0,
+          max: Math.max(xA, xB, 8) + 3,
+          marks: [
+            { value: 0, label: '0' },
+            { value: xA, label: `A:${xA}` },
+            { value: xB, label: `B:${xB}` },
+          ],
+          highlightFrom: Math.min(xA, xB),
+          highlightTo: Math.max(xA, xB),
+          caption: 'Evaluate both events',
+        },
+        steps: [
+          ...base,
+          step(3, 'Identify what to find', `Compare ${labelA} with ${labelB}.`),
+          step(4, 'Draw a diagram', 'Mark both events.'),
+          step(5, 'Translate for Excel', 'POISSON.DIST for each side.', {
+            excel: [
+              poissonEventExcel(lambda, queryA, xA),
+              poissonEventExcel(lambda, queryB, xB),
+            ],
+          }),
+          step(
+            6,
+            'Solve and check',
+            `${labelA} ≈ ${fmt(pA)}; ${labelB} ≈ ${fmt(pB)} → ${winner}.`,
+            {
+              values: [
+                { label: labelA, value: fmt(pA) },
+                { label: labelB, value: fmt(pB) },
+              ],
+            },
+          ),
+        ],
+        explanation: 'Both probabilities are required before declaring which event is more likely.',
+      },
+    }
+  }
+
 
   const x = num(values, 'x')
 
@@ -839,6 +1196,8 @@ function solvePoisson(values: Record<string, unknown>): SolveResult {
     )
   }
 
+
+  if (query === 'moreThan') {
   // moreThan: P(X > x) = 1 − P(X ≤ x)
   const left = POISSON_DIST(x, lambda, true)
   const oneDay = 1 - left
@@ -867,7 +1226,35 @@ function solvePoisson(values: Record<string, unknown>): SolveResult {
     `Shade the right side of the number line starting at ${x + 1}.`,
     `P(X > ${x}) = 1 − P(X ≤ ${x}).`,
   )
+
+  }
+
+  throw new Error(
+    `Unknown poisson query: "${query}". Expected equal, atMost, atLeast, moreThan, percentile, outside, or compare.`,
+  )
 }
+
+function poissonEventProb(lambda: number, query: string, x: number): number {
+  if (query === 'equal') return POISSON_DIST(x, lambda, false)
+  if (query === 'atMost') return POISSON_DIST(x, lambda, true)
+  if (query === 'moreThan') return 1 - POISSON_DIST(x, lambda, true)
+  const cutoff = x - 1
+  return cutoff < 0 ? 1 : 1 - POISSON_DIST(cutoff, lambda, true)
+}
+
+function poissonEventExcel(lambda: number, query: string, x: number): string {
+  if (query === 'equal') return formatExcelCall('POISSON.DIST', [x, lambda, false])
+  if (query === 'atMost') return formatExcelCall('POISSON.DIST', [x, lambda, true])
+  if (query === 'moreThan') {
+    const left = formatExcelCall('POISSON.DIST', [x, lambda, true])
+    return `=1 - ${left.slice(1)}`
+  }
+  const cutoff = x - 1
+  if (cutoff < 0) return '=1'
+  const left = formatExcelCall('POISSON.DIST', [cutoff, lambda, true])
+  return `=1 - ${left.slice(1)}`
+}
+
 
 function solveUniform(values: Record<string, unknown>): SolveResult {
   const a = num(values, 'a')
@@ -1232,6 +1619,141 @@ function solveNormal(values: Record<string, unknown>): SolveResult {
     }
   }
 
+  // P(X < a) or P(X > b) — union of two disjoint tails
+  if (query === 'outside') {
+    const a = num(values, 'lower')
+    const b = num(values, 'upper')
+    if (!(a < b)) {
+      throw new Error('Outside query needs lower < upper (thresholds for X < a or X > b).')
+    }
+    const left = NORM_DIST(a, mean, sd, true)
+    const rightCum = NORM_DIST(b, mean, sd, true)
+    const right = 1 - rightCum
+    const total = left + right
+    const excelLo = formatExcelCall('NORM.DIST', [a, mean, sd, true])
+    const excelHi = formatExcelCall('NORM.DIST', [b, mean, sd, true])
+    return {
+      excelCalls: [`=${excelLo.slice(1)} + (1 - ${excelHi.slice(1)})`],
+      lines: [
+        { label: `P(X < ${a})`, value: fmt(left) },
+        { label: `P(X > ${b})`, value: fmt(right) },
+        {
+          label: `P(X < ${a} or X > ${b})`,
+          value: fmt(total),
+          emphasis: true,
+        },
+      ],
+      note: 'Union of two disjoint tails: add both — continuous P(X = a) = 0 so < and ≤ match.',
+      walkthrough: {
+        title: 'Normal · outside (two-tail union)',
+        distribution: `X ~ N(${mean}, ${sd})`,
+        find: `P(X < ${a} or X > ${b})`,
+        diagram: {
+          kind: 'normal-shade',
+          mean,
+          sd,
+          shade: 'two-tail',
+          lower: a,
+          upper: b,
+          caption: `Shade X < ${a} and X > ${b}`,
+        },
+        steps: [
+          ...intro,
+          step(
+            3,
+            'Identify what to find',
+            `P(X < ${a}) + P(X > ${b}) (disjoint — add both).`,
+          ),
+          step(4, 'Draw a diagram', `Shade both outer tails beyond ${a} and ${b}.`),
+          step(
+            5,
+            'Translate for Excel',
+            `NORM.DIST(${a},…) + (1 − NORM.DIST(${b},…)).`,
+            { excel: [excelLo, `=1 - ${excelHi.slice(1)}`] },
+          ),
+          step(
+            6,
+            'Solve and check',
+            `${fmt(left)} + ${fmt(right)} = ${fmt(total)}.`,
+            {
+              values: [
+                { label: `P(X < ${a})`, value: fmt(left) },
+                { label: `P(X > ${b})`, value: fmt(right) },
+                { label: 'Union', value: fmt(total) },
+              ],
+            },
+          ),
+        ],
+        explanation: 'Never drop one tail of an “or” outside probability.',
+      },
+    }
+  }
+
+  if (query === 'compare') {
+    const queryA = str(values, 'queryA', 'greater')
+    const queryB = str(values, 'queryB', 'greater')
+    const xA = num(values, 'xA')
+    const xB = num(values, 'xB')
+    const pA = normalEventProb(mean, sd, queryA, xA)
+    const pB = normalEventProb(mean, sd, queryB, xB)
+    const labelA = normalEventLabel(queryA, xA)
+    const labelB = normalEventLabel(queryB, xB)
+    const winner =
+      Math.abs(pA - pB) < 1e-12
+        ? 'Equally likely'
+        : pA > pB
+          ? `A more likely (${labelA})`
+          : `B more likely (${labelB})`
+    return {
+      excelCalls: [
+        normalEventExcel(mean, sd, queryA, xA),
+        normalEventExcel(mean, sd, queryB, xB),
+      ],
+      lines: [
+        { label: `A: ${labelA}`, value: fmt(pA), emphasis: pA >= pB },
+        { label: `B: ${labelB}`, value: fmt(pB), emphasis: pB > pA },
+        { label: 'Comparison', value: winner, emphasis: true },
+      ],
+      walkthrough: {
+        title: 'Normal · which is more likely?',
+        distribution: `X ~ N(${mean}, ${sd})`,
+        find: `Compare ${labelA} vs ${labelB}`,
+        diagram: {
+          kind: 'normal-shade',
+          mean,
+          sd,
+          shade: 'between',
+          lower: Math.min(xA, xB),
+          upper: Math.max(xA, xB),
+          caption: 'Compare two events on the same Normal',
+        },
+        steps: [
+          ...intro,
+          step(3, 'Identify what to find', `Compare ${labelA} with ${labelB}.`),
+          step(4, 'Draw a diagram', 'Sketch both events on the same curve.'),
+          step(5, 'Translate for Excel', 'NORM.DIST for each side.', {
+            excel: [
+              normalEventExcel(mean, sd, queryA, xA),
+              normalEventExcel(mean, sd, queryB, xB),
+            ],
+          }),
+          step(
+            6,
+            'Solve and check',
+            `${labelA} ≈ ${fmt(pA)}; ${labelB} ≈ ${fmt(pB)} → ${winner}.`,
+            {
+              values: [
+                { label: labelA, value: fmt(pA) },
+                { label: labelB, value: fmt(pB) },
+              ],
+            },
+          ),
+        ],
+        explanation: 'Both sides must be computed before declaring a winner.',
+      },
+    }
+  }
+
   // P(? < X < xHigh) = p  → convert via Z, reuse standard-normal inverse-between math
   if (query === 'invBetweenLow') {
     const xHigh = num(values, 'upper')
@@ -1473,7 +1995,28 @@ function solveNormal(values: Record<string, unknown>): SolveResult {
     }
   }
 
-  throw new Error(`Unsupported Normal query: ${query}`)
+  throw new Error(
+    `Unknown normal query: "${query}". Expected less, greater, between, outside, compare, inverse, invBetweenLow, invBetweenHigh, or invBetweenSymmetric.`,
+  )
+}
+
+function normalEventLabel(query: string, x: number): string {
+  if (query === 'less') return `P(X ≤ ${x})`
+  if (query === 'equal') return `P(X = ${x})` // continuous → 0, but label clearly
+  return `P(X > ${x})`
+}
+
+function normalEventProb(mean: number, sd: number, query: string, x: number): number {
+  if (query === 'less') return NORM_DIST(x, mean, sd, true)
+  if (query === 'equal') return 0
+  return 1 - NORM_DIST(x, mean, sd, true)
+}
+
+function normalEventExcel(mean: number, sd: number, query: string, x: number): string {
+  const left = formatExcelCall('NORM.DIST', [x, mean, sd, true])
+  if (query === 'less') return left
+  if (query === 'equal') return '=0'
+  return `=1 - ${left.slice(1)}`
 }
 
 function solveStandardNormal(values: Record<string, unknown>): SolveResult {
@@ -1909,49 +2452,55 @@ function solveT(values: Record<string, unknown>): SolveResult {
     }
   }
 
-  const alpha = num(values, 'alpha')
-  const t = T_INV(1 - alpha / 2, df)
-  const excel = formatExcelCall('T.INV', [1 - alpha / 2, df])
-  return {
-    excelCalls: [excel],
-    lines: [
-      {
-        label: `±t* for two-tail α = ${alpha}`,
-        value: `±${fmt(t, 4)}`,
-        emphasis: true,
-      },
-    ],
-    walkthrough: {
-      title: 't · two-sided critical value',
-      distribution: `T ~ t(df = ${df})`,
-      find: `±t* for two-tail α = ${alpha}`,
-      diagram: {
-        kind: 'normal-shade',
-        mean: 0,
-        sd: 1,
-        shade: 'two-tail',
-        lower: -t,
-        upper: t,
-        caption: `Each tail has area α/2 = ${alpha / 2}`,
-      },
-      steps: [
-        step(1, 'Determine the distribution', `Student-t with df = ${df}.`),
-        step(2, 'Code the problem', `Two-tail α = ${alpha} → each tail α/2 = ${alpha / 2}.`),
-        step(3, 'Identify what to find', 'Symmetric critical values ±t*.'),
-        step(4, 'Draw a diagram', 'Shade both tails; leave central probability 1 − α.'),
-        step(
-          5,
-          'Translate for Excel',
-          'T.INV(1 − α/2, df) gives the positive critical value.',
-          { excel: [excel] },
-        ),
-        step(6, 'Solve and check', `±${fmt(t, 4)}.`, {
-          values: [{ label: '±t*', value: `±${fmt(t, 4)}` }],
-        }),
+  if (query === 'invTwo') {
+    const alpha = num(values, 'alpha')
+    const t = T_INV(1 - alpha / 2, df)
+    const excel = formatExcelCall('T.INV', [1 - alpha / 2, df])
+    return {
+      excelCalls: [excel],
+      lines: [
+        {
+          label: `±t* for two-tail α = ${alpha}`,
+          value: `±${fmt(t, 4)}`,
+          emphasis: true,
+        },
       ],
-      explanation: 'Two-sided CIs and tests use ±t* from T.INV(1 − α/2, df).',
-    },
+      walkthrough: {
+        title: 't · two-sided critical value',
+        distribution: `T ~ t(df = ${df})`,
+        find: `±t* for two-tail α = ${alpha}`,
+        diagram: {
+          kind: 'normal-shade',
+          mean: 0,
+          sd: 1,
+          shade: 'two-tail',
+          lower: -t,
+          upper: t,
+          caption: `Each tail has area α/2 = ${alpha / 2}`,
+        },
+        steps: [
+          step(1, 'Determine the distribution', `Student-t with df = ${df}.`),
+          step(2, 'Code the problem', `Two-tail α = ${alpha} → each tail α/2 = ${alpha / 2}.`),
+          step(3, 'Identify what to find', 'Symmetric critical values ±t*.'),
+          step(4, 'Draw a diagram', 'Shade both tails; leave central probability 1 − α.'),
+          step(
+            5,
+            'Translate for Excel',
+            'T.INV(1 − α/2, df) gives the positive critical value.',
+            { excel: [excel] },
+          ),
+          step(6, 'Solve and check', `±${fmt(t, 4)}.`, {
+            values: [{ label: '±t*', value: `±${fmt(t, 4)}` }],
+          }),
+        ],
+        explanation: 'Two-sided CIs and tests use ±t* from T.INV(1 − α/2, df).',
+      },
+    }
   }
+
+  throw new Error(
+    `Unknown t-distribution query: "${query}". Expected cdf, greater, invRight, or invTwo.`,
+  )
 }
 
 function standardErrorMean(

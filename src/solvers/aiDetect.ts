@@ -4,6 +4,7 @@ import {
   pickBestPart,
   finalizeParts,
   applyWithinOfMeanBounds,
+  enrichSolverValues,
   type ParseResult,
   type ParsedPart,
 } from './parseProblem'
@@ -21,7 +22,9 @@ function sanitizeValues(
   values: Record<string, unknown>,
   solverId?: SolverId,
 ): Record<string, string | number | boolean> {
-  return coerceValues(values, solverId)
+  const out = coerceValues(values, solverId)
+  if (out.query === 'invBetween') out.query = 'invBetweenSymmetric'
+  return out
 }
 
 /** Fill gaps from local heuristic parse so AI omissions don't leave form fields blank/stale. */
@@ -30,18 +33,7 @@ function fillMissingFromLocal(
   solverId: SolverId,
   values: Record<string, string | number | boolean>,
 ): Record<string, string | number | boolean> {
-  const local = parseProblemText(text)
-  if (!local) return values
-  const localVals =
-    local.solverId === solverId
-      ? local.values
-      : local.parts?.find((p) => p.solverId === solverId)?.values
-  if (!localVals) return values
-  const out = { ...values }
-  for (const [k, v] of Object.entries(localVals)) {
-    if (!(k in out)) out[k] = v
-  }
-  return out
+  return enrichSolverValues(solverId, text, values)
 }
 
 function sanitizeResult(raw: unknown, fallbackText: string): ParseResult {
@@ -85,7 +77,12 @@ function sanitizeResult(raw: unknown, fallbackText: string): ParseResult {
           (part.values as Record<string, unknown>) ?? {},
           sid,
         )
-        partValues = fillMissingFromLocal(fallbackText, sid, partValues)
+        const partSnippet = [
+          fallbackText,
+          String(part.label ?? ''),
+          String(part.rationale ?? ''),
+        ].join('\n')
+        partValues = fillMissingFromLocal(partSnippet, sid, partValues)
         if (sid === 'sample-mean' || sid === 'normal') {
           partValues = applyWithinOfMeanBounds(fallbackText, partValues)
         }
@@ -101,7 +98,7 @@ function sanitizeResult(raw: unknown, fallbackText: string): ParseResult {
     if (parts.length < 2) parts = undefined
   }
 
-  if (parts) parts = finalizeParts(parts)
+  if (parts) parts = finalizeParts(parts, fallbackText)
 
   const primary =
     parts && parts.length > 0 ? pickBestPart(parts, fallbackText) : undefined

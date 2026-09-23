@@ -48,13 +48,27 @@ Decision rules (MMA distribution tree):
 - Fixed n trials + success/failure + constant p → binomial (BINOM.DIST)
 - Counts at a rate over time/space, or mean count only (no n×p) → poisson (POISSON.DIST)
 - Equal likelihood over [a,b] → uniform
+  · “less than k” / “Y < k” → lower=a, upper=k (NOT empty bounds)
+  · “greater than k” / “Y > k” → atLeast=k
+  · “n independent draws” / “both” / “at least one of n” → drawCount=n (default 1)
+  · Every parts[] entry MUST include numeric a,b and the active bounds/drawCount —
+    never leave values empty while putting the answer only in rationale prose
 - Continuous with μ,σ (or N(μ,σ)) → normal
   · Always put the threshold in values.x as a plain number (1100 not "1,100")
   · Blackout / demand > capacity → query=greater, x=capacity
   · Example Ontario: mean=1000, sd=60, x=1100 → 1−NORM.DIST(1100,1000,60,TRUE)
+  · “How much / how many / order amount / reorder point for X% chance of enough”
+    with raw μ,σ given → solverId=normal, query=inverse, probability=X% (e.g. 0.95).
+    Do NOT route these to standard-normal (that only yields a z-score).
+  · P(X < a or X > b) → query=outside, lower=a, upper=b
+  · Find XL,XU with P(XL<X<XU)=p (symmetric) → query=invBetweenSymmetric, probability=p
+  · Known upper x₂, find lower → query=invBetweenLow, upper=x₂, probability=p
+  · Known lower x₁, find upper → query=invBetweenHigh, lower=x₁, probability=p
+  · Never invent query=invBetween (not valid — use one of the three above)
   · Do NOT invent numeric probabilities in rationale — leave short qualitative notes;
     the app recomputes Final Answers from values.
 - Z ~ N(0,1) lookups → standard-normal
+  · ONLY when the problem is already in z-units or has no raw μ,σ for X
   · P(Z<z), P(Z>z), P(a<Z<b) → less | greater | between
   · P(? < Z < zHigh) = p → query=invBetweenLow, zHigh, probability=p
     Excel: =NORM.S.INV(NORM.S.DIST(zHigh,TRUE)-p)
@@ -83,13 +97,36 @@ Decision rules (MMA distribution tree):
     “be conservative” → conservative=true (p=0.5)
 
 Query conventions:
-- binomial/poisson: equal | atMost | atLeast | moreThan
+- binomial/poisson queries: equal | atMost | atLeast | moreThan | percentile | outside | compare
 - “k or more” / “at least k” → query=atLeast, x=k → Excel 1−DIST(k−1,…,TRUE)
 - “more than k” → query=moreThan, x=k → Excel 1−DIST(k,…,TRUE)
 - Never treat “15 or more” as moreThan with x=15 (that is P(X>15)=P(X≥16), off-by-one)
 - For desk/capacity “do we have a problem?” with X > desks: query=moreThan, x=desks
 - Office Space (a): binomial n=50 p=0.3 moreThan x=20; (b): poisson λ=15 moreThan x=20
 - Red/Blue cars: (a) poisson λ=10 moreThan x=9; (b) binomial n=15 p=0.3 atLeast x=5
+- P(X < a or X > b) / “outside” → query=outside, lower=a, upper=b (BOTH tails — never drop one)
+- “Which is more likely / more probable, A or B?” → query=compare with
+  queryA,xA and queryB,xB (both sides required). Example Gnome: P(X≥2) vs P(X=0) →
+  {query:"compare", queryA:"atLeast", xA:2, queryB:"equal", xB:0}
+  Example equal-equal: X=30 vs X=50 → {query:"compare", queryA:"equal", xA:30, queryB:"equal", xB:50}
+- Discrete percentile: “largest x such that P(X≤x) is as close as possible but no larger than p”
+  → query=percentile, probability=p (field name probability, NOT x). Example:
+  Binomial n=200 p=0.2 target 0.2 → {query:"percentile", n:200, p:0.2, probability:0.2}
+
+Query conventions — t-distribution (solverId=t-dist):
+- ONLY these query values: cdf | greater | invRight | invTwo
+  (never invent “inverse”, “critical”, “right”, etc.)
+- query=cdf, needs {df, t} → P(T ≤ t) via T.DIST(t, df, TRUE)
+- query=greater, needs {df, t} → P(T > t) via 1−T.DIST(t, df, TRUE)
+- query=invRight, needs {df, alpha} → critical t* for a RIGHT-tail α
+  (phrases: “alpha on right = 0.1”, “t associated with alpha on right”)
+  Excel: =T.INV(1−alpha, df)
+- query=invTwo, needs {df, alpha} → critical ±t* for a TWO-tailed α
+  (phrases: “alpha/2 = 0.025”, “two-tail”, “t values associated with alpha/2”)
+  Excel: =T.INV(1−alpha/2, df) → report ± that value
+- Slide example: “Given df=30, find t associated with alpha on right = 0.1”
+  → {query: "invRight", df: 30, alpha: 0.1}
+  (NOT query="inverse" — that is not a valid t-dist query)
 
 CRITICAL — Poisson rate scaling vs independent days:
 - App fields: lambda = base rate per period, hours = interval multiplier (λ_used = lambda × hours),

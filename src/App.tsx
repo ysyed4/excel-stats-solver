@@ -6,6 +6,7 @@ import { solve } from './solvers/compute'
 import { EXAMPLES } from './solvers/examples'
 import type { ParseResult, ParsedPart } from './solvers/parseProblem'
 import { mergeAutofillValues } from './solvers/values'
+import { enrichSolverValues } from './solvers/parseProblem'
 import {
   CATEGORIES,
   SOLVERS,
@@ -105,7 +106,10 @@ function App() {
   }
 
   function applyPart(part: ParsedPart) {
-    fillSolver(part.solverId, part.values, true)
+    // Always materialize every field the part implies — never show rationale-only
+    // prose while the form underneath is empty / unsolvable.
+    const enriched = enrichSolverValues(part.solverId, part.rationale, part.values)
+    fillSolver(part.solverId, enriched, true)
     setActivePartId(part.id)
   }
 
@@ -121,7 +125,12 @@ function App() {
     }
     setParsedParts(undefined)
     setActivePartId(null)
-    fillSolver(parsed.solverId, parsed.values ?? {}, true)
+    const enriched = enrichSolverValues(
+      parsed.solverId,
+      parsed.summary ?? '',
+      parsed.values ?? {},
+    )
+    fillSolver(parsed.solverId, enriched, true)
   }
 
   return (

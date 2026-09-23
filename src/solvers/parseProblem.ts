@@ -116,6 +116,16 @@ function scoreNormal(text: string): number {
   if (/μ\s*=|σ\s*=/.test(t)) score += 3
   if (/kg|weight|height|demand|sales/.test(t) && /standard deviation/.test(t))
     score += 2
+  // Raw-scale quantile / order quantity
+  if (
+    /how much|how many|order|enough|reorder/.test(t) &&
+    ((/mean|μ|expected/.test(t) && /standard deviation|σ\b/.test(t)) ||
+      /n\s*\(\s*[-+]?\d/.test(t))
+  ) {
+    score += 8
+  }
+  if (/xl\s*(?:and|,)\s*xu|p\s*\(\s*xl\s*<\s*x\s*<\s*xu/i.test(t)) score += 5
+  if (/x\s*<\s*\d+.+\bor\b.+x\s*>\s*\d+|outside/i.test(t)) score += 4
   // Explicitly non-normal population → prefer CLT / sample-mean, not X~Normal
   if (/\bnot normal\b|\bnon-?normal\b|\bisn't normal\b/.test(t)) score -= 6
   return score
@@ -139,6 +149,14 @@ function scoreStandardNormal(text: string): number {
   if (/p\s*\([^)]*\bz\b/.test(t)) score += 7
   if (/\?\s*<\s*z|z\s*<\s*\?|<\s*z\s*</.test(t)) score += 4
   if (/find\s+z|critical\s+z|z\s*\*/.test(t)) score += 3
+  // Raw-scale μ,σ + “how much/order/enough” → Normal inverse, not Z
+  if (
+    (/mean|μ|expected/.test(t) && /standard deviation|σ\b/.test(t)) ||
+    /n\s*\(\s*[-+]?\d/.test(t)
+  ) {
+    if (/how much|how many|order|enough|reorder|stock/.test(t)) score -= 10
+    else score -= 4
+  }
   return score
 }
 
@@ -384,6 +402,72 @@ function parseBinomial(text: string): Record<string, string | number | boolean> 
   ) {
     values.query = 'moreThan'
     values.x = desks
+  }
+
+  // Discrete percentile / inverse CDF
+  const pctTarget = num(
+    firstMatch(text, [
+      /no (?:larger|greater) than\s+(\d+(?:\.\d+)?)/i,
+      /as close as possible[^.]*?(\d+(?:\.\d+)?)/i,
+      /P\s*\(\s*X\s*≤\s*x\s*\)[^.]*?(\d+(?:\.\d+)?)/i,
+      /target(?:\s+probability)?\s*(?:p\s*)?[=:]?\s*(\d+(?:\.\d+)?)/i,
+    ]),
+  )
+  if (
+    /percentile|largest (?:integer )?x|as close as possible|no (?:larger|greater) than/i.test(
+      text,
+    ) &&
+    /P\s*\(\s*X\s*≤/i.test(text)
+  ) {
+    values.query = 'percentile'
+    if (pctTarget !== undefined) {
+      values.probability = pctTarget > 1 ? pctToProb(pctTarget) : pctTarget
+    }
+  }
+
+  // Outside: P(X < a) or P(X > b)
+  const outside = text.match(
+    /P\s*\(\s*X\s*<\s*(\d+)\s*\)\s*or\s*P\s*\(\s*X\s*>\s*(\d+)\s*\)|X\s*<\s*(\d+)\s+or\s+X\s*>\s*(\d+)|P\s*\(\s*X\s*<\s*(\d+)\s+or\s+X\s*>\s*(\d+)\s*\)/i,
+  )
+  if (outside) {
+    const a = Number(outside[1] || outside[3] || outside[5])
+    const b = Number(outside[2] || outside[4] || outside[6])
+    if (Number.isFinite(a) && Number.isFinite(b)) {
+      values.query = 'outside'
+      values.lower = a
+      values.upper = b
+    }
+  }
+
+  // Which is more likely / more probable
+  if (/which (?:is )?more (?:likely|probable)|more probable\s*:/i.test(text)) {
+    values.query = 'compare'
+    const eqEq = [
+      ...text.matchAll(/P\s*\(\s*X\s*=\s*(\d+)\s*\)/gi),
+    ].map((m) => Number(m[1]))
+    if (eqEq.length >= 2) {
+      values.queryA = 'equal'
+      values.xA = eqEq[0]
+      values.queryB = 'equal'
+      values.xB = eqEq[1]
+    } else {
+      const atLeast = num(
+        firstMatch(text, [
+          /P\s*\(\s*X\s*≥\s*(\d+)\s*\)/i,
+          /at least\s+(\d+)/i,
+          /(\d+)\s+or more/i,
+        ]),
+      )
+      const exact = num(
+        firstMatch(text, [/P\s*\(\s*X\s*=\s*(\d+)\s*\)/i, /exactly\s+(\d+)/i]),
+      )
+      if (atLeast !== undefined && exact !== undefined) {
+        values.queryA = 'atLeast'
+        values.xA = atLeast
+        values.queryB = 'equal'
+        values.xB = exact
+      }
+    }
   }
 
   return values
@@ -747,16 +831,67 @@ function parsePoisson(text: string): Record<string, string | number | boolean> {
     if (x !== undefined) values.x = x
   }
 
+  if (
+    /percentile|largest (?:integer )?x|as close as possible|no (?:larger|greater) than/i.test(
+      text,
+    ) &&
+    /P\s*\(\s*X\s*≤/i.test(text)
+  ) {
+    values.query = 'percentile'
+    const pctTarget = num(
+      firstMatch(text, [
+        /no (?:larger|greater) than\s+(\d+(?:\.\d+)?)/i,
+        /as close as possible[^.]*?(\d+(?:\.\d+)?)/i,
+        /target(?:\s+probability)?\s*(?:p\s*)?[=:]?\s*(\d+(?:\.\d+)?)/i,
+      ]),
+    )
+    if (pctTarget !== undefined) {
+      values.probability = pctTarget > 1 ? pctToProb(pctTarget) : pctTarget
+    }
+  }
+
+  if (/which (?:is )?more (?:likely|probable)|more probable\s*:/i.test(text)) {
+    values.query = 'compare'
+    const eqEq = [...text.matchAll(/P\s*\(\s*X\s*=\s*(\d+)\s*\)/gi)].map((m) =>
+      Number(m[1]),
+    )
+    if (eqEq.length >= 2) {
+      values.queryA = 'equal'
+      values.xA = eqEq[0]
+      values.queryB = 'equal'
+      values.xB = eqEq[1]
+    }
+  }
+
+  // Outside: P(X < a) or P(X > b)
+  const outside = text.match(
+    /P\s*\(\s*X\s*<\s*(\d+)\s*\)\s*or\s*P\s*\(\s*X\s*>\s*(\d+)\s*\)|X\s*<\s*(\d+)\s+or\s+X\s*>\s*(\d+)|P\s*\(\s*X\s*<\s*(\d+)\s+or\s+X\s*>\s*(\d+)\s*\)|\(X\s*>\s*(\d+)\)/i,
+  )
+  if (
+    outside ||
+    (/X\s*<\s*\d+/i.test(text) && /X\s*>\s*\d+/i.test(text) && /\bor\b/i.test(text))
+  ) {
+    const a = Number(
+      outside?.[1] || outside?.[3] || outside?.[5] ||
+        text.match(/X\s*<\s*(\d+)/i)?.[1],
+    )
+    const b = Number(
+      outside?.[2] || outside?.[4] || outside?.[6] || outside?.[7] ||
+        text.match(/X\s*>\s*(\d+)/i)?.[1],
+    )
+    if (Number.isFinite(a) && Number.isFinite(b) && a < b) {
+      values.query = 'outside'
+      values.lower = a
+      values.upper = b
+    }
+  }
+
   return values
 }
 
 function parseUniform(text: string): Record<string, string | number | boolean> {
-  const values: Record<string, string | number | boolean> = {
-    a: 2000,
-    b: 5000,
-    lower: 2500,
-    upper: 3000,
-  }
+  // Only emit fields found in the text — no lake-trout / gasoline stubs.
+  const values: Record<string, string | number | boolean> = {}
 
   const min = num(
     firstMatch(text, [
@@ -764,6 +899,7 @@ function parseUniform(text: string): Record<string, string | number | boolean> {
       /min(?:imum)?\s*=\s*([\d,]+)/i,
       /uniform\s*\(\s*([\d,]+)\s*,/i,
       /a\s*=\s*([\d,]+)/i,
+      /between\s+([\d,]+)\s+and\s+([\d,]+)/i,
     ]),
   )
   const max = num(
@@ -774,25 +910,61 @@ function parseUniform(text: string): Record<string, string | number | boolean> {
       /b\s*=\s*([\d,]+)/i,
     ]),
   )
-  if (min !== undefined) values.a = min
-  if (max !== undefined) values.b = max
+  // Uniform(a,b) or “between a and b” as the support
+  const support = text.match(
+    /uniform\s*\(\s*([\d,]+)\s*,\s*([\d,]+)\s*\)|uniform(?:ly)?\s+(?:distributed\s+)?(?:on|over|between)\s+([\d,]+)\s+(?:and|to|,)\s+([\d,]+)/i,
+  )
+  if (support) {
+    const a = Number((support[1] || support[3] || '').replace(/,/g, ''))
+    const b = Number((support[2] || support[4] || '').replace(/,/g, ''))
+    if (Number.isFinite(a) && Number.isFinite(b)) {
+      values.a = Math.min(a, b)
+      values.b = Math.max(a, b)
+    }
+  }
+  if (min !== undefined && values.a === undefined) values.a = min
+  if (max !== undefined && values.b === undefined) values.b = max
 
   const between = text.match(
     /between\s+([\d,]+)\s+and\s+([\d,]+)|([\d,]+)\s*[–-]\s*([\d,]+)/i,
   )
-  if (between) {
+  // Only treat as event bounds when support a,b already known and bounds sit inside
+  if (between && values.a !== undefined && values.b !== undefined) {
     const lo = Number((between[1] || between[3] || '').replace(/,/g, ''))
     const hi = Number((between[2] || between[4] || '').replace(/,/g, ''))
-    if (Number.isFinite(lo) && Number.isFinite(hi)) {
+    if (
+      Number.isFinite(lo) &&
+      Number.isFinite(hi) &&
+      !(lo === values.a && hi === values.b)
+    ) {
       values.lower = Math.min(lo, hi)
       values.upper = Math.max(lo, hi)
     }
+  }
+
+  const a0 = typeof values.a === 'number' ? values.a : undefined
+
+  // Y < k / less than k → lower=a, upper=k
+  const lessThan = num(
+    firstMatch(text, [
+      /(?:both\s+)?(?:independent\s+draws?\s+)?(?:less|smaller)\s+than\s+([\d,]+)/i,
+      /[Yy]\s*<\s*([\d,]+)/i,
+      /P\s*\(\s*[Yy]\s*<\s*([\d,]+)\s*\)/i,
+      /less than\s+([\d,]+)/i,
+    ]),
+  )
+  if (lessThan !== undefined && a0 !== undefined) {
+    values.lower = a0
+    values.upper = lessThan
   }
 
   const atLeast = num(
     firstMatch(text, [
       /at least\s+([\d,]+)/i,
       /≥\s*([\d,]+)/i,
+      /greater than\s+([\d,]+)/i,
+      /[Yy]\s*>\s*([\d,]+)/i,
+      /P\s*\(\s*[Yy]\s*>\s*([\d,]+)\s*\)/i,
       /sell at least\s+([\d,]+)/i,
     ]),
   )
@@ -802,6 +974,21 @@ function parseUniform(text: string): Record<string, string | number | boolean> {
     firstMatch(text, [/exactly\s+([\d,]+)/i, /P\([^)]*=\s*([\d,]+)/i]),
   )
   if (exact !== undefined) values.exact = exact
+
+  // Independent draws / both / at least one of n
+  if (/\bboth\b/i.test(text)) {
+    values.drawCount = 2
+  }
+  const draws = num(
+    firstMatch(text, [
+      /(\d+)\s+independent\s+draws?/i,
+      /independent\s+draws?\s*(?:of|n\s*=)?\s*(\d+)/i,
+      /at least one of\s+(\d+)/i,
+      /(\d+)\s+draws?/i,
+    ]),
+  )
+  if (draws !== undefined) values.drawCount = draws
+  if (values.drawCount === undefined) values.drawCount = 1
 
   return values
 }
@@ -896,6 +1083,89 @@ function parseNormal(text: string): Record<string, string | number | boolean> {
       ]),
     )
     if (x !== undefined) values.x = x
+  }
+
+  // Outside: P(X < a or X > b)
+  const outside = text.match(
+    /P\s*\(\s*X\s*<\s*([-+]?[\d,]+(?:\.\d+)?)\s*(?:or|,)\s*X\s*>\s*([-+]?[\d,]+(?:\.\d+)?)\s*\)|X\s*<\s*([-+]?[\d,]+(?:\.\d+)?)\s+or\s+X\s*>\s*([-+]?[\d,]+(?:\.\d+)?)/i,
+  )
+  if (outside || /\boutside\b/i.test(text)) {
+    const aRaw = outside
+      ? outside[1] || outside[3]
+      : firstMatch(text, [/X\s*<\s*([-+]?[\d,]+(?:\.\d+)?)/i])?.[1]
+    const bRaw = outside
+      ? outside[2] || outside[4]
+      : firstMatch(text, [/X\s*>\s*([-+]?[\d,]+(?:\.\d+)?)/i])?.[1]
+    const a = aRaw !== undefined ? Number(String(aRaw).replace(/,/g, '')) : undefined
+    const b = bRaw !== undefined ? Number(String(bRaw).replace(/,/g, '')) : undefined
+    if (a !== undefined && Number.isFinite(a) && b !== undefined && Number.isFinite(b)) {
+      values.query = 'outside'
+      values.lower = a
+      values.upper = b
+    }
+  }
+
+  // Symmetric XL, XU for P(XL < X < XU) = p
+  const sym = text.match(
+    /P\s*\(\s*XL\s*<\s*X\s*<\s*XU\s*\)\s*=\s*(\d+(?:\.\d+)?)|find\s+(?:symmetric\s+)?(?:XL|XU|bounds).*=\s*(\d+(?:\.\d+)?)/i,
+  )
+  if (
+    sym ||
+    (/XL/i.test(text) && /XU/i.test(text) && /P\s*\(/i.test(text))
+  ) {
+    const pRaw = sym?.[1] || sym?.[2]
+    const p =
+      (pRaw !== undefined ? Number(pRaw) : undefined) ??
+      num(
+        firstMatch(text, [
+          /=\s*(\d+(?:\.\d+)?)/,
+          /(\d+(?:\.\d+)?)\s*%\s*(?:probability|chance|confidence)/i,
+        ]),
+      )
+    values.query = 'invBetweenSymmetric'
+    if (p !== undefined && Number.isFinite(p)) {
+      values.probability = p > 1 ? pctToProb(p) : p
+    }
+  }
+
+  // Known-bound invBetween for raw Normal (X, not Z)
+  const invLowX = text.match(
+    /P\s*\(\s*[?_x]\s*<\s*X\s*<\s*([-+]?[\d,]+(?:\.\d+)?)\s*\)\s*=\s*(\d+(?:\.\d+)?)/i,
+  )
+  if (invLowX) {
+    values.query = 'invBetweenLow'
+    values.upper = Number(String(invLowX[1]).replace(/,/g, ''))
+    values.probability = Number(invLowX[2])
+  }
+  const invHighX = text.match(
+    /P\s*\(\s*([-+]?[\d,]+(?:\.\d+)?)\s*<\s*X\s*<\s*[?_x]\s*\)\s*=\s*(\d+(?:\.\d+)?)/i,
+  )
+  if (invHighX) {
+    values.query = 'invBetweenHigh'
+    values.lower = Number(String(invHighX[1]).replace(/,/g, ''))
+    values.probability = Number(invHighX[2])
+  }
+
+  // How much / order for X% chance → inverse quantile on raw scale
+  if (
+    /how much|how many|order|enough|reorder|stock/i.test(text) &&
+    values.mean !== undefined &&
+    values.sd !== undefined
+  ) {
+    const p = num(
+      firstMatch(text, [
+        /(\d+(?:\.\d+)?)\s*%\s*(?:chance|probability|confidence)/i,
+        /chance of\s+(\d+(?:\.\d+)?)\s*%/i,
+        /probability\s*(?:of|is|=)\s*(\d+(?:\.\d+)?)/i,
+      ]),
+    )
+    values.query = 'inverse'
+    if (p !== undefined) values.probability = p > 1 ? pctToProb(p) : p
+  }
+
+  // Remap AI alias
+  if (values.query === 'invBetween') {
+    values.query = 'invBetweenSymmetric'
   }
 
   return values
@@ -1450,6 +1720,34 @@ const PARSERS: Record<
   'n-proportion': parseNProportion,
 }
 
+/** Fill missing solver fields from local heuristics; remap known AI aliases. */
+export function enrichSolverValues(
+  solverId: SolverId,
+  text: string,
+  existing: Record<string, string | number | boolean> = {},
+): Record<string, string | number | boolean> {
+  const parser = PARSERS[solverId]
+  const out: Record<string, string | number | boolean> = { ...existing }
+  if (parser) {
+    const parsed = parser(text)
+    for (const [k, v] of Object.entries(parsed)) {
+      if (!(k in out) || out[k] === '' || out[k] === undefined) {
+        out[k] = v
+      }
+    }
+  }
+  if (out.query === 'invBetween') out.query = 'invBetweenSymmetric'
+  if (
+    solverId === 'normal' &&
+    out.query === 'inverse' &&
+    out.mean === undefined &&
+    /how much|order|enough/i.test(text)
+  ) {
+    // leave inverse; mean/sd should come from parsed text
+  }
+  return out
+}
+
 function normalize(s: string): string {
   return s
     .toLowerCase()
@@ -1494,7 +1792,7 @@ function trainingCaseToResult(tc: TrainingCase, sourceText?: string): ParseResul
     fingerprints: p.fingerprints,
   }))
 
-  if (parts) parts = finalizeParts(parts)
+  if (parts) parts = finalizeParts(parts, sourceText ?? tc.prompt)
 
   const primary =
     parts && parts.length > 0
@@ -1565,10 +1863,17 @@ export function pickBestPart(parts: ParsedPart[], text: string): ParsedPart {
  * - Inherit sample-mean params into later parts that refer to “your sample”
  * - Replace LLM/heuristic rationale numbers with engine-computed Final Answers
  */
-export function finalizeParts(parts: ParsedPart[]): ParsedPart[] {
+export function finalizeParts(
+  parts: ParsedPart[],
+  sourceText = '',
+): ParsedPart[] {
   let out = parts.map((p) => ({
     ...p,
-    values: { ...p.values },
+    values: enrichSolverValues(
+      p.solverId,
+      [sourceText, p.label, p.rationale].filter(Boolean).join('\n'),
+      { ...p.values },
+    ),
   }))
 
   const byLetter = (letter: string) =>
@@ -1657,32 +1962,44 @@ export function finalizeParts(parts: ParsedPart[]): ParsedPart[] {
   }
 
   return out.map((part) => {
-    try {
-      const res = solve(part.solverId, part.values)
-      const emph = res.lines
-        .filter((l) => l.emphasis)
-        .map((l) => `${l.label} ≈ ${l.value}`)
-        .join('; ')
-      const formula = res.excelCalls[0] ?? ''
-      const computed = [formula, emph].filter(Boolean).join(' → ')
-      // Flag impossible right-tail answers for QA (e.g. stale x=16 with μ=1000)
-      const badTail = res.lines.some((l) => {
-        if (!l.emphasis) return false
-        const v = Number(l.value)
-        return v === 0 || v === 1
-      })
-      const warn = badTail
-        ? ' ⚠ Final answer is 0 or 1 — check that x/threshold was autofilled (not a stale default).'
-        : ''
-      return {
-        ...part,
-        rationale: computed
-          ? `${computed}${warn}`
-          : `${part.rationale}${warn}`,
+    const tryTexts = [
+      [sourceText, part.label, part.rationale].filter(Boolean).join('\n'),
+      part.rationale,
+      part.label,
+    ]
+    let values = part.values
+    let lastErr = 'solve failed'
+    for (const snippet of tryTexts) {
+      values = enrichSolverValues(part.solverId, snippet || sourceText, values)
+      try {
+        const res = solve(part.solverId, values)
+        const emph = res.lines
+          .filter((l) => l.emphasis)
+          .map((l) => `${l.label} ≈ ${l.value}`)
+          .join('; ')
+        const formula = res.excelCalls[0] ?? ''
+        const computed = [formula, emph].filter(Boolean).join(' → ')
+        const badTail = res.lines.some((l) => {
+          if (!l.emphasis) return false
+          const v = Number(l.value)
+          return v === 0 || v === 1
+        })
+        const warn = badTail
+          ? ' ⚠ Final answer is 0 or 1 — check that x/threshold was autofilled (not a stale default).'
+          : ''
+        return {
+          ...part,
+          values,
+          rationale: computed ? `${computed}${warn}` : `${part.rationale}${warn}`,
+        }
+      } catch (err) {
+        lastErr = err instanceof Error ? err.message : 'solve failed'
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'solve failed'
-      return { ...part, rationale: `${part.rationale} (engine: ${msg})` }
+    }
+    return {
+      ...part,
+      values,
+      rationale: `${part.rationale} (engine: ${lastErr})`,
     }
   })
 }
@@ -1908,7 +2225,7 @@ export function parseProblemText(raw: string): ParseResult | null {
 
     const coalesced = coalesceSampleMeanSetup(parts, split, text)
     if (coalesced) {
-      const finalized = finalizeParts(coalesced)
+      const finalized = finalizeParts(coalesced, text)
       const primary = finalized[0]
       return {
         solverId: primary.solverId,
@@ -1990,7 +2307,7 @@ export function parseProblemText(raw: string): ParseResult | null {
     }
 
     if (parts.length >= 2) {
-      parts = finalizeParts(parts)
+      parts = finalizeParts(parts, text)
 
       const incompleteNormal = parts.some(
         (p) =>
@@ -2071,14 +2388,24 @@ export function parseProblemText(raw: string): ParseResult | null {
   // 3) Legacy curated EXAMPLES (strict — no number-only matches)
   const example = matchLegacyExample(text)
   if (example) {
-    return {
-      solverId: example.solverId,
-      values: { ...example.values },
-      confidence: 'high',
-      family: SOLVERS.find((s) => s.id === example.solverId)?.category,
-      summary: `Matched curated example “${example.title}”.`,
-      matchedExampleId: example.id,
-      notes: ['Fields filled from the known MMA sample problem.'],
+    // Don't let “Standard normal practice” steal raw-scale Normal quantile /
+    // order-quantity problems that merely say “normally distributed”.
+    const rawScaleNormal =
+      (/mean|expected value|μ\s*=/i.test(text) &&
+        /standard deviation|σ\s*=/i.test(text)) ||
+      /n\s*\(\s*[-+]?\d/i.test(text)
+    const explicitZ =
+      /\bstandard normal\b|\bz\s*~\s*n\s*\(\s*0|p\s*\([^)]*\bz\b/i.test(text)
+    if (!(example.solverId === 'standard-normal' && rawScaleNormal && !explicitZ)) {
+      return {
+        solverId: example.solverId,
+        values: { ...example.values },
+        confidence: 'high',
+        family: SOLVERS.find((s) => s.id === example.solverId)?.category,
+        summary: `Matched curated example “${example.title}”.`,
+        matchedExampleId: example.id,
+        notes: ['Fields filled from the known MMA sample problem.'],
+      }
     }
   }
 
